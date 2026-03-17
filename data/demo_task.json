@@ -1,0 +1,49 @@
+{
+  "task": {
+    "task_id": "task-001",
+    "prompt": "Summarize the benefits of renewable energy.",
+    "expected_keywords": ["solar", "wind", "sustainable", "carbon", "clean"]
+  },
+  "candidates": [
+    {
+      "output_id": "out-001",
+      "task_id": "task-001",
+      "agent_id": "agent_gpt4",
+      "output_text": "Solar and wind energy are clean, sustainable sources that reduce carbon emissions.",
+      "latency_ms": 1200,
+      "timestamp": "2026-03-16T01:00:00Z"
+    },
+    {
+      "output_id": "out-002",
+      "task_id": "task-001",
+      "agent_id": "agent_claude",
+      "output_text": "Renewable energy offers many environmental and economic benefits.",
+      "latency_ms": 800,
+      "timestamp": "2026-03-16T01:00:01Z"
+    },
+    {
+      "output_id": "out-003",
+      "task_id": "task-001",
+      "agent_id": "agent_llama",
+      "output_text": "Wind and solar power are sustainable and help reduce carbon output.",
+      "latency_ms": 2000,
+      "timestamp": "2026-03-16T01:00:02Z"
+    }
+  ],
+  "initial_profiles": {
+    "agent_gpt4": {
+      "agent_id": "agent_gpt4",
+      "agent_name": "GPT-4",
+      "version": "1.0",
+      "success_rate": 0.80,
+      "total_runs": 10
+    },
+    "agent_claude": {
+      "agent_id": "agent_claude",
+      "agent_name": "Claude",
+      "version": "1.0",
+      "success_rate": 0.65,
+      "total_runs": 4
+    }
+  }
+}
