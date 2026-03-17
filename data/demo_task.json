@@ -1,49 +1,33 @@
 {
   "task": {
-    "task_id": "task-001",
-    "prompt": "Summarize the benefits of renewable energy.",
-    "expected_keywords": ["solar", "wind", "sustainable", "carbon", "clean"]
+    "task_id": "task_renewable_energy",
+    "prompt": "Summarize the key benefits of renewable energy for urban infrastructure.",
+    "expected_keywords": ["renewable", "energy", "solar", "wind", "infrastructure", "sustainability", "emissions", "cost"]
   },
   "candidates": [
     {
-      "output_id": "out-001",
-      "task_id": "task-001",
+      "output_id": "out_gpt4_001",
+      "task_id": "task_renewable_energy",
       "agent_id": "agent_gpt4",
-      "output_text": "Solar and wind energy are clean, sustainable sources that reduce carbon emissions.",
-      "latency_ms": 1200,
-      "timestamp": "2026-03-16T01:00:00Z"
+      "output_text": "Renewable energy sources such as solar and wind power offer significant benefits for urban infrastructure. They reduce greenhouse gas emissions, lower long-term energy cost, and improve sustainability across city systems. Modern infrastructure increasingly integrates these solutions to meet climate goals.",
+      "latency_ms": 320,
+      "timestamp": "2025-06-01T10:00:00Z"
     },
     {
-      "output_id": "out-002",
-      "task_id": "task-001",
+      "output_id": "out_claude_001",
+      "task_id": "task_renewable_energy",
       "agent_id": "agent_claude",
-      "output_text": "Renewable energy offers many environmental and economic benefits.",
-      "latency_ms": 800,
-      "timestamp": "2026-03-16T01:00:01Z"
+      "output_text": "Urban infrastructure benefits from renewable energy through reduced emissions and enhanced sustainability. Solar panels and wind turbines provide clean energy that lowers operational cost. Transitioning to renewables strengthens infrastructure resilience against climate disruption.",
+      "latency_ms": 280,
+      "timestamp": "2025-06-01T10:00:01Z"
     },
     {
-      "output_id": "out-003",
-      "task_id": "task-001",
+      "output_id": "out_llama_001",
+      "task_id": "task_renewable_energy",
       "agent_id": "agent_llama",
-      "output_text": "Wind and solar power are sustainable and help reduce carbon output.",
-      "latency_ms": 2000,
-      "timestamp": "2026-03-16T01:00:02Z"
+      "output_text": "Renewable energy is good for cities. Solar and wind help reduce emissions.",
+      "latency_ms": 150,
+      "timestamp": "2025-06-01T10:00:02Z"
     }
-  ],
-  "initial_profiles": {
-    "agent_gpt4": {
-      "agent_id": "agent_gpt4",
-      "agent_name": "GPT-4",
-      "version": "1.0",
-      "success_rate": 0.80,
-      "total_runs": 10
-    },
-    "agent_claude": {
-      "agent_id": "agent_claude",
-      "agent_name": "Claude",
-      "version": "1.0",
-      "success_rate": 0.65,
-      "total_runs": 4
-    }
-  }
+  ]
 }

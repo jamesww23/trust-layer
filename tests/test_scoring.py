@@ -1,90 +1,110 @@
 """Tests for ScoringEngine — relevancy and trust score computation."""
 
-import sys
-import os
-import unittest
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from scoring import ScoringEngine
-from models import AgentProfile, Candidate, Task, ScoringConfig
+import pytest
+from core.models import ScoringConfig
+from core.scoring import ScoringEngine
 
 
-class TestRelevancy(unittest.TestCase):
-    def setUp(self):
-        self.engine = ScoringEngine()
-        self.keywords = ["solar", "wind", "sustainable", "carbon", "clean"]
+class TestComputeRelevancy:
+    """Tests for whole-word keyword relevancy scoring."""
 
-    def test_full_match(self):
-        """agent_gpt4: 5/5 keywords = 1.00"""
-        text = "Solar and wind energy are clean, sustainable sources that reduce carbon emissions."
-        self.assertEqual(self.engine.compute_relevancy(text, self.keywords), 1.0)
+    def test_full_match(self, engine):
+        text = "Renewable energy from solar and wind power."
+        keywords = ["renewable", "energy", "solar", "wind"]
+        result = engine.compute_relevancy(text, keywords)
+        assert result == 1.0
 
-    def test_no_match(self):
-        """agent_claude: 0/5 keywords = 0.00"""
-        text = "Renewable energy offers many environmental and economic benefits."
-        self.assertEqual(self.engine.compute_relevancy(text, self.keywords), 0.0)
+    def test_partial_match(self, engine):
+        text = "Solar panels are great."
+        keywords = ["solar", "wind", "energy", "renewable"]
+        result = engine.compute_relevancy(text, keywords)
+        assert result == 0.25  # 1 out of 4
 
-    def test_partial_match(self):
-        """agent_llama: 4/5 keywords = 0.80"""
-        text = "Wind and solar power are sustainable and help reduce carbon output."
-        self.assertEqual(self.engine.compute_relevancy(text, self.keywords), 0.8)
+    def test_no_match(self, engine):
+        text = "The weather is nice today."
+        keywords = ["solar", "wind", "energy"]
+        result = engine.compute_relevancy(text, keywords)
+        assert result == 0.0
 
-    def test_whole_word_no_substring(self):
-        """'solar' must NOT match 'solarize' or 'parasolar'."""
-        self.assertEqual(self.engine.compute_relevancy("solarize panels", ["solar"]), 0.0)
-        self.assertEqual(self.engine.compute_relevancy("parasolar shield", ["solar"]), 0.0)
+    def test_empty_keywords_returns_half(self, engine):
+        text = "Some text content."
+        result = engine.compute_relevancy(text, [])
+        assert result == 0.5
 
-    def test_whole_word_positive(self):
-        """'solar' MUST match 'solar energy'."""
-        self.assertEqual(self.engine.compute_relevancy("solar energy", ["solar"]), 1.0)
+    def test_case_insensitive(self, engine):
+        text = "SOLAR and WIND energy is RENEWABLE."
+        keywords = ["solar", "wind", "energy", "renewable"]
+        result = engine.compute_relevancy(text, keywords)
+        assert result == 1.0
 
-    def test_empty_keywords_returns_neutral(self):
-        """Empty keywords -> 0.5 (neutral)."""
-        self.assertEqual(self.engine.compute_relevancy("anything here", []), 0.5)
+    def test_whole_word_no_substring(self, engine):
+        """'sun' should not match 'sunny', 'sunrise', etc."""
+        text = "It was a sunny sunrise over the sunflower field."
+        keywords = ["sun"]
+        result = engine.compute_relevancy(text, keywords)
+        assert result == 0.0
 
-    def test_case_insensitive(self):
-        self.assertEqual(self.engine.compute_relevancy("SOLAR WIND", ["solar", "wind"]), 1.0)
+    def test_whole_word_exact(self, engine):
+        """'sun' should match the standalone word 'sun'."""
+        text = "The sun provides solar energy."
+        keywords = ["sun"]
+        result = engine.compute_relevancy(text, keywords)
+        assert result == 1.0
+
+    def test_rounding(self, engine):
+        text = "Renewable energy is important."
+        keywords = ["renewable", "energy", "solar"]
+        result = engine.compute_relevancy(text, keywords)
+        assert result == round(2 / 3, 4)
 
 
-class TestTrustScore(unittest.TestCase):
-    def setUp(self):
-        self.engine = ScoringEngine()
+class TestComputeTrustScore:
+    """Tests for trust score formula."""
 
-    def test_prd_agent_gpt4(self):
-        """0.6*0.80 + 0.4*1.00 = 0.8800"""
-        self.assertEqual(self.engine.compute_trust_score(0.80, 1.00), 0.8800)
+    def test_basic_computation(self, engine):
+        # 0.6 * 0.8 + 0.4 * 1.0 = 0.48 + 0.40 = 0.88
+        result = engine.compute_trust_score(0.8, 1.0)
+        assert result == 0.88
 
-    def test_prd_agent_llama(self):
-        """0.6*0.50 + 0.4*0.80 = 0.6200"""
-        self.assertEqual(self.engine.compute_trust_score(0.50, 0.80), 0.6200)
+    def test_zero_inputs(self, engine):
+        result = engine.compute_trust_score(0.0, 0.0)
+        assert result == 0.0
 
-    def test_prd_agent_claude(self):
-        """0.6*0.65 + 0.4*0.00 = 0.3900"""
-        self.assertEqual(self.engine.compute_trust_score(0.65, 0.00), 0.3900)
+    def test_perfect_inputs(self, engine):
+        result = engine.compute_trust_score(1.0, 1.0)
+        assert result == 1.0
 
-    def test_clamped_to_unit(self):
-        """Output stays in [0.0, 1.0] even with extreme inputs."""
-        self.assertLessEqual(self.engine.compute_trust_score(1.0, 1.0), 1.0)
-        self.assertGreaterEqual(self.engine.compute_trust_score(0.0, 0.0), 0.0)
+    def test_clamps_inputs(self, engine):
+        """Inputs beyond [0, 1] are clamped."""
+        result = engine.compute_trust_score(1.5, -0.3)
+        assert result == engine.compute_trust_score(1.0, 0.0)
 
     def test_custom_weights(self):
-        """Custom weights: 0.3*0.80 + 0.7*1.00 = 0.94"""
-        self.assertEqual(self.engine.compute_trust_score(0.80, 1.00, 0.3, 0.7), 0.94)
+        config = ScoringConfig(w_reputation=0.5, w_relevancy=0.5)
+        eng = ScoringEngine(config)
+        # 0.5 * 0.6 + 0.5 * 0.4 = 0.3 + 0.2 = 0.5
+        result = eng.compute_trust_score(0.6, 0.4)
+        assert result == 0.5
+
+    def test_rounding(self, engine):
+        # 0.6 * 0.333 + 0.4 * 0.667 = 0.1998 + 0.2668 = 0.4666
+        result = engine.compute_trust_score(0.333, 0.667)
+        assert result == round(0.6 * 0.333 + 0.4 * 0.667, 4)
 
 
-class TestFullScore(unittest.TestCase):
-    def test_score_pipeline(self):
-        """ScoringEngine.score() wires relevancy + trust_score correctly."""
-        engine = ScoringEngine()
-        task = Task("t1", "test", ["solar", "wind"])
-        candidate = Candidate("o1", "t1", "a1", "solar and wind power", 100)
-        profile = AgentProfile("a1", "Agent A", "1.0", 0.80, 10)
+class TestScoringConfigValidation:
+    """Tests for config weight validation."""
 
-        sc = engine.score(candidate, task, profile)
-        self.assertEqual(sc.relevancy, 1.0)
-        self.assertEqual(sc.trust_score, 0.88)
+    def test_valid_weights(self):
+        config = ScoringConfig(w_reputation=0.6, w_relevancy=0.4)
+        assert config.w_reputation == 0.6
+        assert config.w_relevancy == 0.4
 
+    def test_invalid_weights_raises(self):
+        with pytest.raises(ValueError, match="must sum to 1.0"):
+            ScoringConfig(w_reputation=0.5, w_relevancy=0.3)
 
-if __name__ == "__main__":
-    unittest.main()
+    def test_tolerance(self):
+        # Should pass: 0.6000001 + 0.4 is within 1e-6 tolerance
+        config = ScoringConfig(w_reputation=0.6000001, w_relevancy=0.4)
+        assert config is not None

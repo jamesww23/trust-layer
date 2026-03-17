@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trust Layer MVP</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>Trust Layer</h1>
+    <p class="subtitle">Reputation-based decision system for AI agents</p>
+  </header>
+
+  <main>
+    <!-- Section 1: Current State -->
+    <section id="state-section">
+      <h2>Agent Reputation State</h2>
+      <table id="profiles-table">
+        <thead>
+          <tr>
+            <th>Agent ID</th>
+            <th>Name</th>
+            <th>Success Rate</th>
+            <th>Total Runs</th>
+            <th>Version</th>
+          </tr>
+        </thead>
+        <tbody id="profiles-body">
+          <tr><td colspan="5" class="loading">Loading...</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Task</h3>
+      <div id="task-info" class="info-box">Loading...</div>
+
+      <h3>Candidates</h3>
+      <div id="candidates-info" class="info-box">Loading...</div>
+
+      <h3>Scoring Config</h3>
+      <div id="config-info" class="info-box">Loading...</div>
+    </section>
+
+    <!-- Section 2: Controls -->
+    <section id="controls-section">
+      <button id="run-btn" onclick="runDemo()">Run Demo</button>
+      <button id="reset-btn" onclick="resetState()">Reset Reputation</button>
+      <span id="status-msg"></span>
+    </section>
+
+    <!-- Section 3: Results (hidden until run) -->
+    <section id="results-section" style="display:none;">
+      <h2>Evaluation Results</h2>
+
+      <div id="winner-box" class="winner-box"></div>
+
+      <h3>Ranking</h3>
+      <table id="ranking-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Agent ID</th>
+            <th>Relevancy</th>
+            <th>Trust Score</th>
+            <th>Success Rate</th>
+          </tr>
+        </thead>
+        <tbody id="ranking-body"></tbody>
+      </table>
+
+      <h3>Reputation Update</h3>
+      <div id="reputation-diff" class="info-box"></div>
+
+      <h3>Structured Logs</h3>
+      <pre id="logs-output"></pre>
+    </section>
+  </main>
+
+  <footer>
+    <p>Trust Layer MVP &mdash; Phase 1</p>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>

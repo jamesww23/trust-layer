@@ -1,76 +1,80 @@
-# Trust Layer
+# Trust Layer MVP
 
-Reputation-based decision system for AI agents.
+A reputation-based decision system for AI agents. Trust Layer evaluates pre-supplied candidate outputs from multiple agents, computes Trust Scores, ranks candidates deterministically, selects a winner, and updates agent reputation over time.
 
-## What It Is
-
-Trust Layer is a decision engine that sits between AI generation and execution. It does **not** generate outputs. It evaluates candidate outputs from multiple agents, computes a Trust Score for each, selects the best candidate, and persistently updates agent reputation.
-
-**Core loop:** load task → load reputation → score → rank → select → update → persist
+**Core concept:** agentic reputation → trust score → decision
 
 ## What the MVP Demonstrates
 
-- End-to-end agentic evaluation loop running locally
-- Whole-word keyword relevancy scoring (no substring false positives)
-- Weighted Trust Score formula: `0.6 * reputation + 0.4 * relevancy`
-- Deterministic winner selection with tie-breaking
-- Persistent reputation that evolves across runs
-- Structured log output showing every step of the decision process
-- All candidate outputs are pre-supplied strings — no LLM API calls
+- Persistent agent reputation profiles
+- Whole-word keyword relevancy scoring
+- Trust Score computation: `0.6 × success_rate + 0.4 × relevancy`
+- Deterministic ranking with tie-break rules
+- Winner selection and structural outcome validation
+- Winner-only reputation update with persistence
+- Full evaluation loop observable via browser UI and structured logs
 
 ## Folder Structure
 
 ```
-/src
-  main.py           # CLI entry point
-  controller.py     # TrustController — orchestrates the 11-step loop
-  scoring.py        # ScoringEngine — relevancy + trust score
-  store.py          # ReputationStore — JSON file persistence
-  models.py         # Data models (AgentProfile, Task, Candidate, etc.)
-  utils.py          # Config loading + structured logger
-/data
-  demo_task.json    # Fixture: task + candidates + seed profiles
-  reputation.json   # Persistent agent reputation (updated each run)
-/config
-  scoring.json      # Weight configuration
-/tests
-  test_scoring.py   # Relevancy + trust score tests
-  test_store.py     # Persistence tests
-  test_controller.py # Full loop, tie-break, validation tests
-```
-
-## How to Run
-
-```bash
-python src/main.py
-```
-
-Run it again — the second run loads updated reputation from the first:
-
-```bash
-python src/main.py
+trust-layer/
+├── api/                  # Vercel serverless handlers (BaseHTTPRequestHandler)
+│   ├── health.py         # GET  /api/health
+│   ├── state.py          # GET  /api/state
+│   ├── run_demo.py       # POST /api/run-demo
+│   └── reset.py          # POST /api/reset
+├── core/                 # Pure Python engine (zero web dependencies)
+│   ├── models.py         # Data models
+│   ├── scoring.py        # ScoringEngine
+│   ├── store.py          # ReputationStore (MemoryStore + RedisStore)
+│   ├── controller.py     # TrustController
+│   ├── config.py         # Scoring config loader
+│   └── fixtures.py       # Demo task + seed profiles loader
+├── data/                 # Read-only fixture files
+│   ├── demo_task.json
+│   └── seed_profiles.json
+├── public/               # Static frontend (no framework)
+│   ├── index.html
+│   ├── style.css
+│   └── app.js
+├── tests/                # pytest test suite
+│   ├── conftest.py
+│   ├── test_scoring.py
+│   ├── test_store.py
+│   └── test_controller.py
+├── config/
+│   └── scoring.json      # Scoring weights
+├── requirements.txt
+├── vercel.json
+└── README.md
 ```
 
 ## How to Run Tests
 
 ```bash
+cd trust-layer
+pip install -r requirements.txt
 python -m pytest tests/ -v
 ```
 
-Or without pytest:
+Tests use `MemoryStore` (in-memory) and do not require Redis or any external service.
 
-```bash
-python -m unittest discover tests -v
-```
+## How to Deploy on Vercel
 
-## What Is Intentionally Out of Scope
+1. Push to GitHub
+2. Import project in Vercel
+3. Add a Vercel KV (Upstash Redis) store from the Vercel dashboard
+4. Environment variables are auto-configured:
+   - `UPSTASH_REDIS_REST_URL`
+   - `UPSTASH_REDIS_REST_TOKEN`
+5. Deploy
 
-- Web UI / dashboard / frontend of any kind
-- LLM API calls (candidates are pre-supplied fixtures)
-- Embedding-based relevancy (Phase 2)
-- Latency / cost scoring (Phase 2+)
-- Loser reputation updates (Phase 2)
-- Multi-user concurrency
-- Production database backend
-- Task history persistence
-- User rating input
+## Intentionally Out of Scope (Phase 1)
+
+- No real LLM API calls
+- No semantic or embedding-based relevancy
+- No loser reputation updates
+- No custom task input via UI
+- No run history
+- No authentication
+- No quality-based outcome evaluation (structural check only)

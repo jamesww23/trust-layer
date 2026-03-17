@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/**/*.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    { "src": "/api/health", "dest": "/api/health.py" },
+    { "src": "/api/state", "dest": "/api/state.py" },
+    { "src": "/api/run-demo", "dest": "/api/run_demo.py" },
+    { "src": "/api/reset", "dest": "/api/reset.py" },
+    { "src": "/(.*)", "dest": "/public/$1" }
+  ]
+}
