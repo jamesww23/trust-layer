@@ -1,4 +1,4 @@
-"""Fixture loader for demo task and seed profiles."""
+"""Fixture loader for demo task, seed profiles, and scenario management."""
 
 import json
 import os
@@ -6,8 +6,10 @@ import os
 from core.models import AgentProfile, Task, Candidate
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_DEMO_TASK_PATH = os.path.join(_PROJECT_ROOT, "data", "demo_task.json")
-_SEED_PROFILES_PATH = os.path.join(_PROJECT_ROOT, "data", "seed_profiles.json")
+_DATA_DIR = os.path.join(_PROJECT_ROOT, "data")
+_DEMO_TASK_PATH = os.path.join(_DATA_DIR, "demo_task.json")
+_SEED_PROFILES_PATH = os.path.join(_DATA_DIR, "seed_profiles.json")
+_SCENARIOS_PATH = os.path.join(_DATA_DIR, "scenarios.json")
 
 
 def load_demo_task(path: str = None) -> tuple:
@@ -42,3 +44,38 @@ def load_seed_profiles(path: str = None) -> dict:
         agent_id: AgentProfile.from_dict(profile_data)
         for agent_id, profile_data in data.items()
     }
+
+
+def list_scenarios() -> list:
+    """Return list of available scenario metadata dicts.
+
+    Each dict has: task_id, title, domain, file.
+    """
+    with open(_SCENARIOS_PATH, "r") as f:
+        return json.load(f)
+
+
+def load_scenario(task_id: str) -> tuple:
+    """Load a specific scenario by task_id from the manifest.
+
+    Returns:
+        (Task, list[Candidate])
+
+    Raises:
+        ValueError: If task_id not found in scenarios manifest.
+    """
+    scenarios = list_scenarios()
+    match = None
+    for s in scenarios:
+        if s["task_id"] == task_id:
+            match = s
+            break
+
+    if match is None:
+        valid_ids = [s["task_id"] for s in scenarios]
+        raise ValueError(
+            f"Unknown task_id: {task_id}. Valid options: {valid_ids}"
+        )
+
+    path = os.path.join(_DATA_DIR, match["file"])
+    return load_demo_task(path=path)

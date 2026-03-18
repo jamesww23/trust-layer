@@ -1,0 +1,33 @@
+{
+  "task": {
+    "task_id": "task_threat_analysis",
+    "prompt": "Outline the key steps in performing a network threat analysis for enterprise infrastructure.",
+    "expected_keywords": ["threat", "vulnerability", "malware", "firewall", "intrusion", "detection", "network", "security"]
+  },
+  "candidates": [
+    {
+      "output_id": "out_cs_gpt4",
+      "task_id": "task_threat_analysis",
+      "agent_id": "agent_gpt4",
+      "output_text": "Network threat analysis begins with asset discovery and vulnerability scanning across the enterprise infrastructure. Security teams deploy intrusion detection systems alongside firewall rules to monitor traffic. Threat intelligence feeds help identify known malware signatures and emerging attack patterns.",
+      "latency_ms": 340,
+      "timestamp": "2025-03-15T12:00:00Z"
+    },
+    {
+      "output_id": "out_cs_claude",
+      "task_id": "task_threat_analysis",
+      "agent_id": "agent_claude",
+      "output_text": "Enterprise network security requires a structured approach to threat detection. Key steps include vulnerability assessment of all network endpoints, deployment of intrusion detection and prevention systems, firewall configuration review, and continuous monitoring for malware indicators. A comprehensive threat analysis also evaluates security policy compliance and tests defenses against simulated attacks.",
+      "latency_ms": 300,
+      "timestamp": "2025-03-15T12:00:01Z"
+    },
+    {
+      "output_id": "out_cs_llama",
+      "task_id": "task_threat_analysis",
+      "agent_id": "agent_llama",
+      "output_text": "To analyze threats on a network you need to check for vulnerability issues and set up a firewall. Intrusion detection helps catch malware. Security teams monitor the network for threat indicators and respond to incidents.",
+      "latency_ms": 140,
+      "timestamp": "2025-03-15T12:00:02Z"
+    }
+  ]
+}

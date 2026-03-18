@@ -8,7 +8,8 @@ from http.server import BaseHTTPRequestHandler
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.config import load_scoring_config
-from core.fixtures import load_demo_task, load_seed_profiles
+from urllib.parse import urlparse, parse_qs
+from core.fixtures import load_demo_task, load_seed_profiles, list_scenarios, load_scenario
 from core.store import RedisStore
 
 
@@ -23,14 +24,25 @@ class handler(BaseHTTPRequestHandler):
                 store.reset(seed)
 
             profiles = store.list_all()
-            task, candidates = load_demo_task()
             config = load_scoring_config()
+            scenarios = list_scenarios()
+
+            # Support ?task_id= query param for scenario selection
+            parsed = urlparse(self.path)
+            params = parse_qs(parsed.query)
+            task_id = params.get("task_id", [None])[0]
+
+            if task_id:
+                task, candidates = load_scenario(task_id)
+            else:
+                task, candidates = load_demo_task()
 
             response = {
                 "profiles": [p.to_dict() for p in profiles],
                 "task": task.to_dict(),
                 "candidates": [c.to_dict() for c in candidates],
                 "config": config.to_dict(),
+                "scenarios": scenarios,
             }
 
             self.send_response(200)

@@ -182,3 +182,191 @@ class TestRunDemoMalformedJson:
         assert instance._response_code == 400
         data = json.loads(body)
         assert "Malformed JSON" in data["error"]
+
+
+# ---------------------------------------------------------------------------
+# Tests: POST /api/run-demo — task_id scenario selection
+# ---------------------------------------------------------------------------
+
+def _mock_store_with_profiles():
+    """Return a configured mock store for run tests."""
+    from core.models import AgentProfile
+    mock_store = MagicMock()
+    mock_store.is_empty.return_value = False
+    profiles = [
+        AgentProfile("agent_gpt4", "GPT-4", success_rate=0.85, total_runs=20),
+        AgentProfile("agent_claude", "Claude", success_rate=0.78, total_runs=15),
+        AgentProfile("agent_llama", "LLaMA", success_rate=0.60, total_runs=10),
+    ]
+    mock_store.list_all.return_value = profiles
+    mock_store.lookup.side_effect = lambda aid: next(
+        (p for p in profiles if p.agent_id == aid),
+        AgentProfile(aid, aid, success_rate=0.5, total_runs=0)
+    )
+    return mock_store
+
+
+class TestRunDemoTaskId:
+    """Verify task_id scenario selection in /api/run-demo."""
+
+    @patch("api.run_demo.RedisStore")
+    def test_task_id_selects_scenario(self, mock_store_cls):
+        from api.run_demo import handler as RunDemoHandler
+        mock_store_cls.return_value = _mock_store_with_profiles()
+
+        instance, body = _make_handler(
+            RunDemoHandler, method="POST",
+            body=json.dumps({"task_id": "task_patient_triage"}).encode()
+        )
+        assert instance._response_code == 200
+        data = json.loads(body)
+        assert data["result"]["task_id"] == "task_patient_triage"
+
+    @patch("api.run_demo.RedisStore")
+    def test_invalid_task_id_returns_400(self, mock_store_cls):
+        from api.run_demo import handler as RunDemoHandler
+        mock_store_cls.return_value = _mock_store_with_profiles()
+
+        instance, body = _make_handler(
+            RunDemoHandler, method="POST",
+            body=json.dumps({"task_id": "task_nonexistent"}).encode()
+        )
+        assert instance._response_code == 400
+        data = json.loads(body)
+        assert "Unknown task_id" in data["error"]
+
+    @patch("api.run_demo.RedisStore")
+    def test_no_task_id_uses_default(self, mock_store_cls):
+        from api.run_demo import handler as RunDemoHandler
+        mock_store_cls.return_value = _mock_store_with_profiles()
+
+        instance, body = _make_handler(
+            RunDemoHandler, method="POST", body=b"{}"
+        )
+        assert instance._response_code == 200
+        data = json.loads(body)
+        assert data["result"]["task_id"] == "task_renewable_energy"
+
+
+# ---------------------------------------------------------------------------
+# Tests: POST /api/run-custom
+# ---------------------------------------------------------------------------
+
+class TestRunCustomEndpoint:
+    """Verify /api/run-custom accepts custom task+candidates."""
+
+    @patch("api.run_custom.RedisStore")
+    def test_valid_custom_input_returns_200(self, mock_store_cls):
+        from api.run_custom import handler as RunCustomHandler
+        mock_store_cls.return_value = _mock_store_with_profiles()
+
+        payload = {
+            "task": {
+                "prompt": "Explain cloud computing benefits",
+                "expected_keywords": ["cloud", "computing", "scalability"]
+            },
+            "candidates": [
+                {"agent_id": "agent_alpha", "output_text": "Cloud computing provides scalability and flexibility for enterprises."},
+                {"agent_id": "agent_beta", "output_text": "Computing in the cloud helps with scale."}
+            ]
+        }
+        instance, body = _make_handler(
+            RunCustomHandler, method="POST",
+            body=json.dumps(payload).encode()
+        )
+        assert instance._response_code == 200
+        data = json.loads(body)
+        assert "result" in data
+        assert data["result"]["winner_agent_id"] in ("agent_alpha", "agent_beta")
+
+    @patch("api.run_custom.RedisStore")
+    def test_missing_prompt_returns_400(self, mock_store_cls):
+        from api.run_custom import handler as RunCustomHandler
+        mock_store_cls.return_value = _mock_store_with_profiles()
+
+        payload = {
+            "task": {"expected_keywords": ["test"]},
+            "candidates": [
+                {"agent_id": "a1", "output_text": "text one here"},
+                {"agent_id": "a2", "output_text": "text two here"}
+            ]
+        }
+        instance, body = _make_handler(
+            RunCustomHandler, method="POST",
+            body=json.dumps(payload).encode()
+        )
+        assert instance._response_code == 400
+        data = json.loads(body)
+        assert "prompt" in data["error"].lower()
+
+    @patch("api.run_custom.RedisStore")
+    def test_fewer_than_2_candidates_returns_400(self, mock_store_cls):
+        from api.run_custom import handler as RunCustomHandler
+        mock_store_cls.return_value = _mock_store_with_profiles()
+
+        payload = {
+            "task": {"prompt": "Some task", "expected_keywords": ["test"]},
+            "candidates": [
+                {"agent_id": "a1", "output_text": "only one candidate here"}
+            ]
+        }
+        instance, body = _make_handler(
+            RunCustomHandler, method="POST",
+            body=json.dumps(payload).encode()
+        )
+        assert instance._response_code == 400
+        data = json.loads(body)
+        assert "2 candidates" in data["error"]
+
+    @patch("api.run_custom.RedisStore")
+    def test_empty_body_returns_400(self, mock_store_cls):
+        from api.run_custom import handler as RunCustomHandler
+        mock_store_cls.return_value = _mock_store_with_profiles()
+
+        instance, body = _make_handler(
+            RunCustomHandler, method="POST", body=b""
+        )
+        assert instance._response_code == 400
+        data = json.loads(body)
+        assert "required" in data["error"].lower()
+
+    @patch("api.run_custom.RedisStore")
+    def test_missing_task_object_returns_400(self, mock_store_cls):
+        from api.run_custom import handler as RunCustomHandler
+        mock_store_cls.return_value = _mock_store_with_profiles()
+
+        payload = {
+            "candidates": [
+                {"agent_id": "a1", "output_text": "text"},
+                {"agent_id": "a2", "output_text": "text"}
+            ]
+        }
+        instance, body = _make_handler(
+            RunCustomHandler, method="POST",
+            body=json.dumps(payload).encode()
+        )
+        assert instance._response_code == 400
+
+    @patch("api.run_custom.RedisStore")
+    def test_unknown_agents_get_default_reputation(self, mock_store_cls):
+        """Custom agents not in store should still work with default rep."""
+        from api.run_custom import handler as RunCustomHandler
+        mock_store_cls.return_value = _mock_store_with_profiles()
+
+        payload = {
+            "task": {
+                "prompt": "Test task for custom agents",
+                "expected_keywords": ["test", "custom"]
+            },
+            "candidates": [
+                {"agent_id": "custom_agent_x", "output_text": "This is a test with custom agent output."},
+                {"agent_id": "custom_agent_y", "output_text": "Another custom test response here."}
+            ]
+        }
+        instance, body = _make_handler(
+            RunCustomHandler, method="POST",
+            body=json.dumps(payload).encode()
+        )
+        assert instance._response_code == 200
+        data = json.loads(body)
+        assert data["result"]["winner_agent_id"] in ("custom_agent_x", "custom_agent_y")

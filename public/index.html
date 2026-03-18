@@ -43,12 +43,45 @@
 
     <!-- Section 2: Controls -->
     <section id="controls-section">
-      <button id="run-btn" onclick="runDemo()">Run Demo</button>
-      <button id="reset-btn" onclick="resetState()">Reset Reputation</button>
-      <span id="status-msg"></span>
+      <div class="controls-row">
+        <select id="scenario-select" onchange="onScenarioChange()">
+          <option value="">Loading scenarios...</option>
+        </select>
+        <button id="run-btn" onclick="runDemo()">Run Demo</button>
+        <button id="reset-btn" onclick="resetState()">Reset Reputation</button>
+        <span id="status-msg"></span>
+      </div>
     </section>
 
-    <!-- Section 3: Results (hidden until run) -->
+    <!-- Section 3: Custom Input -->
+    <section id="custom-section">
+      <button id="custom-toggle" onclick="toggleCustom()">+ Custom Input</button>
+      <div id="custom-form" style="display:none;">
+        <label for="custom-prompt">Task Prompt</label>
+        <textarea id="custom-prompt" rows="3" placeholder="Describe the task for agents to respond to..."></textarea>
+
+        <label for="custom-keywords">Expected Keywords (comma-separated)</label>
+        <input type="text" id="custom-keywords" placeholder="keyword1, keyword2, keyword3">
+
+        <h4>Candidate Outputs</h4>
+        <div id="candidates-list">
+          <div class="candidate-input">
+            <input type="text" placeholder="Agent ID (e.g. agent_alpha)" class="cand-agent-id">
+            <textarea rows="2" placeholder="Agent output text..." class="cand-output"></textarea>
+          </div>
+          <div class="candidate-input">
+            <input type="text" placeholder="Agent ID (e.g. agent_beta)" class="cand-agent-id">
+            <textarea rows="2" placeholder="Agent output text..." class="cand-output"></textarea>
+          </div>
+        </div>
+        <div class="custom-buttons">
+          <button id="add-candidate-btn" onclick="addCandidate()">+ Add Candidate</button>
+          <button id="run-custom-btn" onclick="runCustom()">Run Custom Evaluation</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 4: Results (hidden until run) -->
     <section id="results-section" style="display:none;">
       <h2>Evaluation Results</h2>
 

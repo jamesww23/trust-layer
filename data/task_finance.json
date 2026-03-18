@@ -1,0 +1,33 @@
+{
+  "task": {
+    "task_id": "task_fraud_detection",
+    "prompt": "Explain how machine learning models detect fraudulent transactions in banking systems.",
+    "expected_keywords": ["fraud", "transaction", "anomaly", "detection", "banking", "risk", "model", "pattern"]
+  },
+  "candidates": [
+    {
+      "output_id": "out_fin_gpt4",
+      "task_id": "task_fraud_detection",
+      "agent_id": "agent_gpt4",
+      "output_text": "Machine learning models detect fraud in banking by analyzing transaction patterns for anomaly signals. These models learn normal behavior and flag deviations that indicate risk. Common approaches use supervised classification on labeled fraud data combined with unsupervised anomaly detection for novel attack vectors.",
+      "latency_ms": 310,
+      "timestamp": "2025-03-15T11:00:00Z"
+    },
+    {
+      "output_id": "out_fin_claude",
+      "task_id": "task_fraud_detection",
+      "agent_id": "agent_claude",
+      "output_text": "Fraud detection in banking relies on model architectures that learn transaction patterns over time. When a transaction deviates from established patterns, the system assigns a risk score based on multiple anomaly indicators. Real-time detection pipelines process each banking transaction against historical baselines to identify suspicious activity and reduce false positives.",
+      "latency_ms": 290,
+      "timestamp": "2025-03-15T11:00:01Z"
+    },
+    {
+      "output_id": "out_fin_llama",
+      "task_id": "task_fraud_detection",
+      "agent_id": "agent_llama",
+      "output_text": "Banks use AI to find fraud in transactions. The model looks at patterns and flags anomaly cases. Detection systems help reduce risk by catching suspicious banking activity before it causes damage. Machine learning improves fraud detection accuracy over time as it processes more transaction data and learns new pattern variations.",
+      "latency_ms": 160,
+      "timestamp": "2025-03-15T11:00:02Z"
+    }
+  ]
+}

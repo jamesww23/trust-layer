@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.config import load_scoring_config
-from core.fixtures import load_demo_task, load_seed_profiles
+from core.fixtures import load_demo_task, load_seed_profiles, load_scenario
 from core.scoring import ScoringEngine
 from core.controller import TrustController
 from core.store import RedisStore
@@ -54,7 +54,11 @@ class handler(BaseHTTPRequestHandler):
 
             # Load fixtures and config
             config = load_scoring_config()
-            task, candidates = load_demo_task()
+            task_id = body.get("task_id")
+            if task_id:
+                task, candidates = load_scenario(task_id)
+            else:
+                task, candidates = load_demo_task()
             engine = ScoringEngine(config)
             controller = TrustController(store, engine, config)
 

@@ -14,6 +14,7 @@
     { "src": "/api/health", "dest": "/api/health.py" },
     { "src": "/api/state", "dest": "/api/state.py" },
     { "src": "/api/run-demo", "dest": "/api/run_demo.py" },
+    { "src": "/api/run-custom", "dest": "/api/run_custom.py" },
     { "src": "/api/reset", "dest": "/api/reset.py" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]

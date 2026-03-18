@@ -1,0 +1,26 @@
+[
+  {
+    "task_id": "task_renewable_energy",
+    "title": "Renewable Energy",
+    "domain": "sustainability",
+    "file": "demo_task.json"
+  },
+  {
+    "task_id": "task_patient_triage",
+    "title": "Patient Triage",
+    "domain": "healthcare",
+    "file": "task_healthcare.json"
+  },
+  {
+    "task_id": "task_fraud_detection",
+    "title": "Fraud Detection",
+    "domain": "finance",
+    "file": "task_finance.json"
+  },
+  {
+    "task_id": "task_threat_analysis",
+    "title": "Threat Analysis",
+    "domain": "cybersecurity",
+    "file": "task_cybersecurity.json"
+  }
+]
