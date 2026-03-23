@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.config import load_scoring_config
 from core.fixtures import load_demo_task, load_seed_profiles, load_scenario
 from core.scoring import ScoringEngine
-from core.controller import TrustController
+from core.controller import TrustController, build_run_record
 from core.store import RedisStore
 
 
@@ -69,7 +69,14 @@ class handler(BaseHTTPRequestHandler):
             # Snapshot profiles after
             profiles_after = [p.to_dict() for p in store.list_all()]
 
+            # Persist run record
+            record = build_run_record(
+                task, candidates, result, logs,
+                profiles_before, profiles_after, source="demo")
+            store.save_run(record)
+
             response = {
+                "run_id": record.run_id,
                 "result": result.to_dict(),
                 "profiles_before": profiles_before,
                 "profiles_after": profiles_after,

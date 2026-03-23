@@ -146,6 +146,54 @@ class TaskResult:
         )
 
 
+class RunRecord:
+    """Persistent record of a single evaluation run."""
+
+    def __init__(self, run_id: str, task: dict, candidates: list,
+                 result: dict, logs: list, profiles_before: list,
+                 profiles_after: list, source: str = "demo",
+                 feedback_override: dict = None, created_at: str = None):
+        self.run_id = run_id
+        self.task = task
+        self.candidates = candidates
+        self.result = result
+        self.logs = logs
+        self.profiles_before = profiles_before
+        self.profiles_after = profiles_after
+        self.source = source
+        self.feedback_override = feedback_override
+        self.created_at = created_at or datetime.now(timezone.utc).isoformat()
+
+    def to_dict(self) -> dict:
+        return {
+            "run_id": self.run_id,
+            "task": self.task,
+            "candidates": self.candidates,
+            "result": self.result,
+            "logs": self.logs,
+            "profiles_before": self.profiles_before,
+            "profiles_after": self.profiles_after,
+            "source": self.source,
+            "feedback_override": self.feedback_override,
+            "created_at": self.created_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "RunRecord":
+        return cls(
+            run_id=data["run_id"],
+            task=data["task"],
+            candidates=data["candidates"],
+            result=data["result"],
+            logs=data["logs"],
+            profiles_before=data["profiles_before"],
+            profiles_after=data["profiles_after"],
+            source=data.get("source", "demo"),
+            feedback_override=data.get("feedback_override"),
+            created_at=data.get("created_at"),
+        )
+
+
 class ScoringConfig:
     """Weights for trust score computation."""
 

@@ -10,7 +10,7 @@ import os
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 
-from core.models import AgentProfile
+from core.models import AgentProfile, RunRecord
 
 
 class ReputationStore(ABC):
@@ -49,6 +49,31 @@ class ReputationStore(ABC):
         """Wipe all profiles and re-seed from provided dict."""
         ...
 
+    @abstractmethod
+    def save_run(self, record: RunRecord) -> None:
+        """Persist a run record."""
+        ...
+
+    @abstractmethod
+    def get_run(self, run_id: str) -> RunRecord:
+        """Retrieve a run record by ID. Returns None if not found."""
+        ...
+
+    @abstractmethod
+    def list_runs(self, limit: int = 50, offset: int = 0) -> list:
+        """Fetch recent runs, newest first."""
+        ...
+
+    @abstractmethod
+    def update_run(self, record: RunRecord) -> None:
+        """Overwrite an existing run record."""
+        ...
+
+    @abstractmethod
+    def clear_runs(self) -> None:
+        """Wipe all run history."""
+        ...
+
     def _default_profile(self, agent_id: str) -> AgentProfile:
         """Create a default profile for an unknown agent."""
         now = datetime.now(timezone.utc).isoformat()
@@ -68,6 +93,8 @@ class MemoryStore(ReputationStore):
 
     def __init__(self, initial: dict = None):
         self._data: dict[str, AgentProfile] = {}
+        self._runs: dict = {}
+        self._run_index: list = []
         if initial:
             for agent_id, profile in initial.items():
                 self._data[agent_id] = profile
@@ -94,6 +121,24 @@ class MemoryStore(ReputationStore):
         self._data.clear()
         for agent_id, profile in seed_profiles.items():
             self._data[agent_id] = profile
+
+    def save_run(self, record: RunRecord) -> None:
+        self._runs[record.run_id] = record
+        self._run_index.insert(0, record.run_id)
+
+    def get_run(self, run_id: str) -> RunRecord:
+        return self._runs.get(run_id)
+
+    def list_runs(self, limit: int = 50, offset: int = 0) -> list:
+        ids = self._run_index[offset:offset + limit]
+        return [self._runs[rid] for rid in ids if rid in self._runs]
+
+    def update_run(self, record: RunRecord) -> None:
+        self._runs[record.run_id] = record
+
+    def clear_runs(self) -> None:
+        self._runs.clear()
+        self._run_index.clear()
 
     def is_empty(self) -> bool:
         return len(self._data) == 0
@@ -162,6 +207,38 @@ class RedisStore(ReputationStore):
             self._redis.delete(key)
         for agent_id, profile in seed_profiles.items():
             self.upsert(profile)
+
+    def save_run(self, record: RunRecord) -> None:
+        self._redis.set(f"run:{record.run_id}", json.dumps(record.to_dict()))
+        self._redis.lpush("runs:index", record.run_id)
+
+    def get_run(self, run_id: str) -> RunRecord:
+        raw = self._redis.get(f"run:{run_id}")
+        if raw is None:
+            return None
+        data = raw if isinstance(raw, dict) else json.loads(raw)
+        return RunRecord.from_dict(data)
+
+    def list_runs(self, limit: int = 50, offset: int = 0) -> list:
+        ids = self._redis.lrange("runs:index", offset, offset + limit - 1)
+        if not ids:
+            return []
+        runs = []
+        for run_id in ids:
+            raw = self._redis.get(f"run:{run_id}")
+            if raw is not None:
+                data = raw if isinstance(raw, dict) else json.loads(raw)
+                runs.append(RunRecord.from_dict(data))
+        return runs
+
+    def update_run(self, record: RunRecord) -> None:
+        self._redis.set(f"run:{record.run_id}", json.dumps(record.to_dict()))
+
+    def clear_runs(self) -> None:
+        ids = self._redis.lrange("runs:index", 0, -1)
+        for run_id in (ids or []):
+            self._redis.delete(f"run:{run_id}")
+        self._redis.delete("runs:index")
 
     def is_empty(self) -> bool:
         keys = self._redis.keys(f"{self.KEY_PREFIX}*")

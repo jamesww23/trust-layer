@@ -3,10 +3,10 @@
 Public interface for the Trust Layer MVP.
 """
 
-from core.models import AgentProfile, Task, Candidate, TaskResult, ScoringConfig
+from core.models import AgentProfile, Task, Candidate, TaskResult, RunRecord, ScoringConfig
 from core.scoring import ScoringEngine
 from core.store import ReputationStore, MemoryStore, RedisStore
-from core.controller import TrustController
+from core.controller import TrustController, build_run_record, apply_feedback
 from core.config import load_scoring_config
 from core.fixtures import load_demo_task, load_seed_profiles, list_scenarios, load_scenario
 
@@ -15,12 +15,15 @@ __all__ = [
     "Task",
     "Candidate",
     "TaskResult",
+    "RunRecord",
     "ScoringConfig",
     "ScoringEngine",
     "ReputationStore",
     "MemoryStore",
     "RedisStore",
     "TrustController",
+    "build_run_record",
+    "apply_feedback",
     "load_scoring_config",
     "load_demo_task",
     "load_seed_profiles",

@@ -1,4 +1,4 @@
-"""POST /api/run-custom — Execute Trust Layer with user-provided input."""
+"""POST /api/run-llm — Generate real LLM outputs and evaluate with Trust Layer."""
 
 import json
 import sys
@@ -10,10 +10,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.config import load_scoring_config
 from core.fixtures import load_seed_profiles
-from core.models import Task, Candidate
+from core.models import Task
 from core.scoring import ScoringEngine
 from core.controller import TrustController, build_run_record
 from core.store import RedisStore
+from core.llm import generate_candidates
 
 
 class handler(BaseHTTPRequestHandler):
@@ -26,7 +27,7 @@ class handler(BaseHTTPRequestHandler):
                 seed = load_seed_profiles()
                 store.reset(seed)
 
-            # Parse required request body
+            # Parse required body
             content_length = int(self.headers.get("Content-Length", 0))
             if content_length == 0:
                 self.send_response(400)
@@ -55,97 +56,34 @@ class handler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": "Request body must be a JSON object"}).encode())
                 return
 
-            # Validate required fields
-            task_data = body.get("task")
-            candidates_data = body.get("candidates")
-
-            if not task_data or not isinstance(task_data, dict):
-                self.send_response(400)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.end_headers()
-                self.wfile.write(json.dumps({"error": "Missing or invalid 'task' object"}).encode())
-                return
-
-            if not candidates_data or not isinstance(candidates_data, list):
-                self.send_response(400)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.end_headers()
-                self.wfile.write(json.dumps({"error": "Missing or invalid 'candidates' array"}).encode())
-                return
-
-            prompt = task_data.get("prompt", "").strip()
+            prompt = body.get("prompt", "").strip()
             if not prompt:
                 self.send_response(400)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
-                self.wfile.write(json.dumps({"error": "Task prompt is required"}).encode())
+                self.wfile.write(json.dumps({"error": "prompt is required"}).encode())
                 return
 
-            if len(candidates_data) < 2:
-                self.send_response(400)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.end_headers()
-                self.wfile.write(json.dumps({"error": "At least 2 candidates required"}).encode())
-                return
+            keywords = body.get("expected_keywords", [])
+            model = body.get("model", "gpt-4o-mini")
 
-            # Build models from custom input
-            short_id = uuid.uuid4().hex[:8]
-            task_id = f"custom_{short_id}"
-            keywords = task_data.get("expected_keywords", [])
+            # Build task
+            task_id = f"llm_{uuid.uuid4().hex[:8]}"
+            task = Task(task_id=task_id, prompt=prompt, expected_keywords=keywords)
 
-            task = Task(
-                task_id=task_id,
-                prompt=prompt,
-                expected_keywords=keywords,
-            )
-
-            candidates = []
-            for i, c in enumerate(candidates_data):
-                agent_id = c.get("agent_id", "").strip()
-                output_text = c.get("output_text", "").strip()
-
-                if not agent_id:
-                    self.send_response(400)
-                    self.send_header("Content-Type", "application/json")
-                    self.send_header("Access-Control-Allow-Origin", "*")
-                    self.end_headers()
-                    self.wfile.write(json.dumps({
-                        "error": f"Candidate {i+1}: agent_id is required"
-                    }).encode())
-                    return
-
-                if not output_text:
-                    self.send_response(400)
-                    self.send_header("Content-Type", "application/json")
-                    self.send_header("Access-Control-Allow-Origin", "*")
-                    self.end_headers()
-                    self.wfile.write(json.dumps({
-                        "error": f"Candidate {i+1}: output_text is required"
-                    }).encode())
-                    return
-
-                candidates.append(Candidate(
-                    output_id=f"out_{agent_id}_{short_id}",
-                    task_id=task_id,
-                    agent_id=agent_id,
-                    output_text=output_text,
-                ))
-
-            explicit_outcome = body.get("outcome", None)
+            # Generate real LLM outputs
+            candidates = generate_candidates(prompt, task_id, model=model)
 
             # Snapshot profiles before
             profiles_before = [p.to_dict() for p in store.list_all()]
 
-            # Run the full loop
+            # Run Trust Layer evaluation
             config = load_scoring_config()
             engine = ScoringEngine(config)
             controller = TrustController(store, engine, config)
 
-            result = controller.run_task(task, candidates, outcome=explicit_outcome)
+            result = controller.run_task(task, candidates)
             logs = controller.get_logs()
 
             # Snapshot profiles after
@@ -154,12 +92,13 @@ class handler(BaseHTTPRequestHandler):
             # Persist run record
             record = build_run_record(
                 task, candidates, result, logs,
-                profiles_before, profiles_after, source="custom")
+                profiles_before, profiles_after, source="llm")
             store.save_run(record)
 
             response = {
                 "run_id": record.run_id,
                 "result": result.to_dict(),
+                "candidates": [c.to_dict() for c in candidates],
                 "profiles_before": profiles_before,
                 "profiles_after": profiles_after,
                 "logs": logs,
@@ -170,6 +109,13 @@ class handler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(json.dumps(response).encode())
+
+        except EnvironmentError as e:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
 
         except ValueError as e:
             self.send_response(400)

@@ -1,8 +1,9 @@
 """TrustController — orchestrates the full Trust Layer evaluation loop."""
 
+import uuid
 from datetime import datetime, timezone
 
-from core.models import Task, Candidate, TaskResult, ScoringConfig
+from core.models import Task, Candidate, TaskResult, RunRecord, ScoringConfig
 from core.scoring import ScoringEngine
 from core.store import ReputationStore
 
@@ -165,3 +166,61 @@ class TrustController:
                     f"Candidate {c.output_id} task_id={c.task_id} "
                     f"does not match task.task_id={task.task_id}"
                 )
+
+
+def build_run_record(task, candidates, result, logs, profiles_before,
+                     profiles_after, source="demo"):
+    """Construct a RunRecord from evaluation outputs."""
+    run_id = uuid.uuid4().hex[:12]
+    return RunRecord(
+        run_id=run_id,
+        task=task.to_dict(),
+        candidates=[c.to_dict() for c in candidates],
+        result=result.to_dict(),
+        logs=logs,
+        profiles_before=profiles_before,
+        profiles_after=profiles_after,
+        source=source,
+    )
+
+
+def apply_feedback(store, run_record, new_outcome):
+    """Override a run's outcome and adjust winner reputation.
+
+    Args:
+        store: ReputationStore instance.
+        run_record: RunRecord instance to override.
+        new_outcome: bool — the corrected outcome.
+
+    Returns:
+        Updated RunRecord.
+    """
+    result = run_record.result
+    original_outcome = result["outcome"]
+
+    if new_outcome == original_outcome:
+        return run_record
+
+    winner_id = result["winner_agent_id"]
+    profile = store.lookup(winner_id)
+
+    old_val = 1.0 if original_outcome else 0.0
+    new_val = 1.0 if new_outcome else 0.0
+
+    current_sr = profile.success_rate
+    current_runs = profile.total_runs
+
+    if current_runs > 0:
+        adjusted_sr = (current_sr * current_runs - old_val + new_val) / current_runs
+        profile.success_rate = round(max(0.0, min(1.0, adjusted_sr)), 4)
+    store.upsert(profile)
+
+    run_record.result["outcome"] = new_outcome
+    run_record.feedback_override = {
+        "original_outcome": original_outcome,
+        "new_outcome": new_outcome,
+        "overridden_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    store.update_run(run_record)
+    return run_record

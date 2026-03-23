@@ -1,2 +1,3 @@
 upstash-redis
+openai
 pytest

@@ -48,15 +48,55 @@
           <option value="">Loading scenarios...</option>
         </select>
         <button id="run-btn" onclick="runDemo()">Run Demo</button>
-        <button id="reset-btn" onclick="resetState()">Reset Reputation</button>
+        <button id="reset-btn" onclick="resetState()">Reset All</button>
         <span id="status-msg"></span>
       </div>
     </section>
 
-    <!-- Section 3: Custom Input -->
+    <!-- LLM Evaluation -->
+    <section id="llm-section">
+      <button class="section-toggle" onclick="toggleSection('llm')">+ LLM Evaluation (Real AI)</button>
+      <div id="llm-form" class="collapsible-form" style="display:none;">
+        <label for="llm-prompt">Task Prompt</label>
+        <textarea id="llm-prompt" rows="3" placeholder="Enter a task for AI agents to respond to..."></textarea>
+
+        <label for="llm-keywords">Expected Keywords (comma-separated)</label>
+        <input type="text" id="llm-keywords" placeholder="keyword1, keyword2, keyword3">
+
+        <label for="llm-model">Model</label>
+        <select id="llm-model">
+          <option value="gpt-4o-mini">GPT-4o-mini (fast, low cost)</option>
+          <option value="gpt-4o">GPT-4o (higher quality)</option>
+        </select>
+
+        <div class="custom-buttons">
+          <button class="btn-primary" onclick="runLLM()">Run LLM Evaluation</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Batch Evaluation -->
+    <section id="batch-section">
+      <button class="section-toggle" onclick="toggleSection('batch')">+ Batch Evaluation</button>
+      <div id="batch-form" class="collapsible-form" style="display:none;">
+        <label for="batch-mode">Mode</label>
+        <select id="batch-mode" onchange="onBatchModeChange()">
+          <option value="scenarios">All Scenarios (4 tasks)</option>
+          <option value="repeat">Repeat Scenario</option>
+        </select>
+
+        <div id="batch-options"></div>
+
+        <div class="custom-buttons">
+          <button class="btn-primary" onclick="runBatch()">Run Batch</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Custom Input -->
     <section id="custom-section">
-      <button id="custom-toggle" onclick="toggleCustom()">+ Custom Input</button>
-      <div id="custom-form" style="display:none;">
+      <button class="section-toggle" onclick="toggleSection('custom')">+ Custom Input</button>
+      <div id="custom-form" class="collapsible-form" style="display:none;">
         <label for="custom-prompt">Task Prompt</label>
         <textarea id="custom-prompt" rows="3" placeholder="Describe the task for agents to respond to..."></textarea>
 
@@ -75,17 +115,31 @@
           </div>
         </div>
         <div class="custom-buttons">
-          <button id="add-candidate-btn" onclick="addCandidate()">+ Add Candidate</button>
-          <button id="run-custom-btn" onclick="runCustom()">Run Custom Evaluation</button>
+          <button class="btn-secondary" onclick="addCandidate()">+ Add Candidate</button>
+          <button class="btn-primary" onclick="runCustom()">Run Custom Evaluation</button>
         </div>
       </div>
     </section>
 
-    <!-- Section 4: Results (hidden until run) -->
+    <!-- Results (hidden until run) -->
     <section id="results-section" style="display:none;">
       <h2>Evaluation Results</h2>
 
       <div id="winner-box" class="winner-box"></div>
+
+      <div id="feedback-section" style="display:none;">
+        <div class="feedback-row">
+          <span>Override outcome:</span>
+          <button class="feedback-accept" onclick="submitFeedback(true)">Accept</button>
+          <button class="feedback-reject" onclick="submitFeedback(false)">Reject</button>
+          <span id="feedback-status"></span>
+        </div>
+      </div>
+
+      <div id="candidates-output-section" style="display:none;">
+        <h3>Agent Outputs</h3>
+        <div id="candidates-output" class="info-box"></div>
+      </div>
 
       <h3>Ranking</h3>
       <table id="ranking-table">
@@ -107,10 +161,37 @@
       <h3>Structured Logs</h3>
       <pre id="logs-output"></pre>
     </section>
+
+    <!-- Batch Results (hidden until batch run) -->
+    <section id="batch-results-section" style="display:none;">
+      <h2>Batch Results</h2>
+      <div id="batch-summary" class="info-box"></div>
+
+      <h3>Aggregate Stats</h3>
+      <table id="batch-stats-table">
+        <thead>
+          <tr><th>Agent ID</th><th>Wins</th><th>Avg Score</th></tr>
+        </thead>
+        <tbody id="batch-stats-body"></tbody>
+      </table>
+
+      <h3>Per-Run Results</h3>
+      <div id="batch-runs-list"></div>
+
+      <h3>Reputation Timeline</h3>
+      <div id="reputation-timeline" class="info-box"></div>
+    </section>
+
+    <!-- Run History -->
+    <section id="history-section">
+      <h2>Run History</h2>
+      <button class="btn-secondary" onclick="loadHistory()">Refresh History</button>
+      <div id="history-list"></div>
+    </section>
   </main>
 
   <footer>
-    <p>Trust Layer MVP &mdash; Phase 1</p>
+    <p>Trust Layer MVP &mdash; Real AI Evaluation Engine</p>
   </footer>
 
   <script src="/app.js"></script>

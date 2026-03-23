@@ -1,29 +1,33 @@
-"""POST /api/reset — Wipe all reputation data and restore seed state."""
+"""GET /api/runs — Fetch run history."""
 
 import json
 import sys
 import os
 from http.server import BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.fixtures import load_seed_profiles
 from core.store import RedisStore
 
 
 class handler(BaseHTTPRequestHandler):
-    def do_POST(self):
+    def do_GET(self):
         try:
             store = RedisStore()
-            seed = load_seed_profiles()
-            store.reset(seed)
-            store.clear_runs()
 
-            profiles = store.list_all()
+            parsed = urlparse(self.path)
+            params = parse_qs(parsed.query)
+            limit = int(params.get("limit", ["50"])[0])
+            offset = int(params.get("offset", ["0"])[0])
+
+            runs = store.list_runs(limit=limit, offset=offset)
 
             response = {
-                "status": "reset",
-                "profiles": [p.to_dict() for p in profiles],
+                "runs": [r.to_dict() for r in runs],
+                "count": len(runs),
+                "limit": limit,
+                "offset": offset,
             }
 
             self.send_response(200)
@@ -38,10 +42,3 @@ class handler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode())
-
-    def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
