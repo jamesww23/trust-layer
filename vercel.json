@@ -19,6 +19,9 @@
     { "src": "/api/run-batch", "dest": "/api/run_batch.py" },
     { "src": "/api/runs", "dest": "/api/runs.py" },
     { "src": "/api/feedback", "dest": "/api/feedback.py" },
+    { "src": "/api/create-task", "dest": "/api/create_task.py" },
+    { "src": "/api/submit-output", "dest": "/api/submit_output.py" },
+    { "src": "/api/evaluate-task", "dest": "/api/evaluate_task.py" },
     { "src": "/api/reset", "dest": "/api/reset.py" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]

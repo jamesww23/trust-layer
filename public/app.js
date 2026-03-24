@@ -19,6 +19,7 @@ async function loadState() {
     renderCandidates(data.candidates);
     renderConfig(data.config);
     if (data.scenarios) renderScenarios(data.scenarios);
+    if (data.available_providers) renderProviders(data.available_providers);
   } catch (err) {
     setStatus("Error loading state: " + err.message);
   }
@@ -96,20 +97,29 @@ async function resetState() {
 }
 
 // --- LLM Evaluation ---
+function renderProviders(providers) {
+  const el = document.getElementById("providers-info");
+  if (!providers || providers.length === 0) {
+    el.textContent = "No LLM providers configured. Set API keys in Vercel environment variables.";
+    return;
+  }
+  const mode = providers.length >= 2 ? "Multi-provider mode" : "Persona fallback mode (1 provider)";
+  el.textContent = mode + "\nAvailable: " + providers.map(p => p.agent_name + " (" + p.provider + ")").join(", ");
+}
+
 async function runLLM() {
-  setStatus("Calling OpenAI API (3 personas)...");
+  setStatus("Calling LLM agents...");
   try {
     const prompt = document.getElementById("llm-prompt").value.trim();
     if (!prompt) { setStatus("Task prompt is required."); return; }
 
     const keywordsRaw = document.getElementById("llm-keywords").value.trim();
     const keywords = keywordsRaw ? keywordsRaw.split(",").map(k => k.trim()).filter(k => k) : [];
-    const model = document.getElementById("llm-model").value;
 
     const res = await fetch(API_BASE + "/api/run-llm", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, expected_keywords: keywords, model }),
+      body: JSON.stringify({ prompt, expected_keywords: keywords }),
     });
     if (!res.ok) {
       const err = await res.json();
@@ -299,6 +309,95 @@ function renderHistory(runs) {
   }
   html += '</tbody></table>';
   el.innerHTML = html;
+}
+
+// --- External Agent ---
+let currentExtTaskId = null;
+
+async function createTask() {
+  setStatus("Creating task...");
+  try {
+    const prompt = document.getElementById("ext-prompt").value.trim();
+    if (!prompt) { setStatus("Task prompt is required."); return; }
+
+    const keywordsRaw = document.getElementById("ext-keywords").value.trim();
+    const keywords = keywordsRaw ? keywordsRaw.split(",").map(k => k.trim()).filter(k => k) : [];
+
+    const res = await fetch(API_BASE + "/api/create-task", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, expected_keywords: keywords }),
+    });
+    if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
+    const data = await res.json();
+    currentExtTaskId = data.task_id;
+
+    document.getElementById("ext-task-info").style.display = "block";
+    document.getElementById("ext-task-info").textContent =
+      `Task created: ${data.task_id}\nPrompt: ${data.prompt}\nKeywords: ${data.expected_keywords.join(", ")}`;
+    document.getElementById("ext-submit-form").style.display = "block";
+    document.getElementById("ext-evaluate-form").style.display = "block";
+    setStatus("Task created. Now submit agent outputs.");
+  } catch (err) {
+    setStatus("Error: " + err.message);
+  }
+}
+
+async function submitOutput() {
+  if (!currentExtTaskId) { setStatus("Create a task first."); return; }
+  try {
+    const agentId = document.getElementById("ext-agent-id").value.trim();
+    const agentName = document.getElementById("ext-agent-name").value.trim();
+    const outputText = document.getElementById("ext-output").value.trim();
+
+    if (!agentId) { setStatus("Agent ID is required."); return; }
+    if (!outputText) { setStatus("Output text is required."); return; }
+
+    const res = await fetch(API_BASE + "/api/submit-output", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        task_id: currentExtTaskId,
+        agent_id: agentId,
+        agent_name: agentName || agentId,
+        output_text: outputText,
+      }),
+    });
+    if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
+    const data = await res.json();
+
+    const info = document.getElementById("ext-submissions-info");
+    info.style.display = "block";
+    info.textContent = `${data.submissions_count} submission(s) queued for ${currentExtTaskId}`;
+
+    // Clear form for next submission
+    document.getElementById("ext-agent-id").value = "";
+    document.getElementById("ext-agent-name").value = "";
+    document.getElementById("ext-output").value = "";
+    setStatus(`Output from ${agentId} queued.`);
+  } catch (err) {
+    setStatus("Error: " + err.message);
+  }
+}
+
+async function evaluateTask() {
+  if (!currentExtTaskId) { setStatus("Create a task first."); return; }
+  setStatus("Evaluating submissions...");
+  try {
+    const res = await fetch(API_BASE + "/api/evaluate-task", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task_id: currentExtTaskId }),
+    });
+    if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
+    const data = await res.json();
+    renderResults(data, true);
+    renderProfiles(data.profiles_after);
+    loadHistory();
+    setStatus("External agent evaluation complete.");
+  } catch (err) {
+    setStatus("Error: " + err.message);
+  }
 }
 
 // --- Renderers ---

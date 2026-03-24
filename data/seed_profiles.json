@@ -25,5 +25,23 @@
     "total_runs": 10,
     "created_at": "2025-01-01T00:00:00Z",
     "updated_at": "2025-01-01T00:00:00Z"
+  },
+  "agent_openai": {
+    "agent_id": "agent_openai",
+    "agent_name": "OpenAI GPT-4o-mini",
+    "version": "1.0",
+    "success_rate": 0.50,
+    "total_runs": 0,
+    "created_at": "2025-01-01T00:00:00Z",
+    "updated_at": "2025-01-01T00:00:00Z"
+  },
+  "agent_groq": {
+    "agent_id": "agent_groq",
+    "agent_name": "Groq LLaMA 3 70B",
+    "version": "1.0",
+    "success_rate": 0.50,
+    "total_runs": 0,
+    "created_at": "2025-01-01T00:00:00Z",
+    "updated_at": "2025-01-01T00:00:00Z"
   }
 }

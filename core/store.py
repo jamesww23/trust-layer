@@ -74,6 +74,31 @@ class ReputationStore(ABC):
         """Wipe all run history."""
         ...
 
+    @abstractmethod
+    def store_task(self, task_id: str, task_data: dict) -> None:
+        """Store a pending task for external agent submission."""
+        ...
+
+    @abstractmethod
+    def get_task(self, task_id: str) -> dict:
+        """Retrieve a pending task. Returns None if not found."""
+        ...
+
+    @abstractmethod
+    def queue_submission(self, task_id: str, submission: dict) -> None:
+        """Queue an external agent submission for a task."""
+        ...
+
+    @abstractmethod
+    def get_submissions(self, task_id: str) -> list:
+        """Get all queued submissions for a task."""
+        ...
+
+    @abstractmethod
+    def clear_submissions(self, task_id: str) -> None:
+        """Clear queued submissions for a task."""
+        ...
+
     def _default_profile(self, agent_id: str) -> AgentProfile:
         """Create a default profile for an unknown agent."""
         now = datetime.now(timezone.utc).isoformat()
@@ -95,6 +120,8 @@ class MemoryStore(ReputationStore):
         self._data: dict[str, AgentProfile] = {}
         self._runs: dict = {}
         self._run_index: list = []
+        self._tasks: dict = {}
+        self._queues: dict = {}
         if initial:
             for agent_id, profile in initial.items():
                 self._data[agent_id] = profile
@@ -139,6 +166,23 @@ class MemoryStore(ReputationStore):
     def clear_runs(self) -> None:
         self._runs.clear()
         self._run_index.clear()
+
+    def store_task(self, task_id: str, task_data: dict) -> None:
+        self._tasks[task_id] = task_data
+
+    def get_task(self, task_id: str) -> dict:
+        return self._tasks.get(task_id)
+
+    def queue_submission(self, task_id: str, submission: dict) -> None:
+        if task_id not in self._queues:
+            self._queues[task_id] = []
+        self._queues[task_id].append(submission)
+
+    def get_submissions(self, task_id: str) -> list:
+        return self._queues.get(task_id, [])
+
+    def clear_submissions(self, task_id: str) -> None:
+        self._queues.pop(task_id, None)
 
     def is_empty(self) -> bool:
         return len(self._data) == 0
@@ -239,6 +283,30 @@ class RedisStore(ReputationStore):
         for run_id in (ids or []):
             self._redis.delete(f"run:{run_id}")
         self._redis.delete("runs:index")
+
+    def store_task(self, task_id: str, task_data: dict) -> None:
+        self._redis.set(f"task:{task_id}", json.dumps(task_data))
+
+    def get_task(self, task_id: str) -> dict:
+        raw = self._redis.get(f"task:{task_id}")
+        if raw is None:
+            return None
+        return raw if isinstance(raw, dict) else json.loads(raw)
+
+    def queue_submission(self, task_id: str, submission: dict) -> None:
+        self._redis.lpush(f"queue:{task_id}", json.dumps(submission))
+
+    def get_submissions(self, task_id: str) -> list:
+        items = self._redis.lrange(f"queue:{task_id}", 0, -1)
+        if not items:
+            return []
+        return [
+            (item if isinstance(item, dict) else json.loads(item))
+            for item in items
+        ]
+
+    def clear_submissions(self, task_id: str) -> None:
+        self._redis.delete(f"queue:{task_id}")
 
     def is_empty(self) -> bool:
         keys = self._redis.keys(f"{self.KEY_PREFIX}*")

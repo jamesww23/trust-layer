@@ -1,20 +1,18 @@
-"""POST /api/run-llm — Generate real LLM outputs and evaluate with Trust Layer."""
+"""POST /api/evaluate-task — Evaluate queued external agent submissions."""
 
 import json
 import sys
 import os
-import uuid
 from http.server import BaseHTTPRequestHandler
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.config import load_scoring_config
 from core.fixtures import load_seed_profiles
-from core.models import Task
+from core.models import Task, Candidate
 from core.scoring import ScoringEngine
 from core.controller import TrustController, build_run_record
 from core.store import RedisStore
-from core.llm import generate_candidates, get_available_providers
 
 
 class handler(BaseHTTPRequestHandler):
@@ -22,12 +20,10 @@ class handler(BaseHTTPRequestHandler):
         try:
             store = RedisStore()
 
-            # Auto-seed if empty
             if store.is_empty():
                 seed = load_seed_profiles()
                 store.reset(seed)
 
-            # Parse required body
             content_length = int(self.headers.get("Content-Length", 0))
             if content_length == 0:
                 self.send_response(400)
@@ -48,32 +44,66 @@ class handler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": f"Malformed JSON: {e}"}).encode())
                 return
 
-            if not isinstance(body, dict):
+            task_id = body.get("task_id", "").strip()
+            if not task_id:
                 self.send_response(400)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
-                self.wfile.write(json.dumps({"error": "Request body must be a JSON object"}).encode())
+                self.wfile.write(json.dumps({"error": "task_id is required"}).encode())
                 return
 
-            prompt = body.get("prompt", "").strip()
-            if not prompt:
+            # Load task
+            task_data = store.get_task(task_id)
+            if task_data is None:
+                self.send_response(404)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": f"Task {task_id} not found"}).encode())
+                return
+
+            # Get queued submissions
+            submissions = store.get_submissions(task_id)
+            if len(submissions) < 2:
                 self.send_response(400)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
-                self.wfile.write(json.dumps({"error": "prompt is required"}).encode())
+                self.wfile.write(json.dumps({
+                    "error": f"At least 2 submissions required, got {len(submissions)}",
+                    "submissions_count": len(submissions),
+                }).encode())
                 return
 
-            keywords = body.get("expected_keywords", [])
-            model = body.get("model", "gpt-4o-mini")
+            # Check for duplicate agent_ids
+            agent_ids = [s["agent_id"] for s in submissions]
+            if len(agent_ids) != len(set(agent_ids)):
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "error": "Duplicate agent_id in submissions"
+                }).encode())
+                return
 
-            # Build task
-            task_id = f"llm_{uuid.uuid4().hex[:8]}"
-            task = Task(task_id=task_id, prompt=prompt, expected_keywords=keywords)
+            # Build Task and Candidate objects
+            task = Task(
+                task_id=task_data["task_id"],
+                prompt=task_data["prompt"],
+                expected_keywords=task_data.get("expected_keywords", []),
+            )
 
-            # Generate real LLM outputs
-            candidates = generate_candidates(prompt, task_id, model=model)
+            candidates = []
+            for s in submissions:
+                candidates.append(Candidate(
+                    output_id=s["output_id"],
+                    task_id=task_id,
+                    agent_id=s["agent_id"],
+                    output_text=s["output_text"],
+                    timestamp=s.get("timestamp"),
+                ))
 
             # Snapshot profiles before
             profiles_before = [p.to_dict() for p in store.list_all()]
@@ -92,11 +122,11 @@ class handler(BaseHTTPRequestHandler):
             # Persist run record
             record = build_run_record(
                 task, candidates, result, logs,
-                profiles_before, profiles_after, source="llm")
+                profiles_before, profiles_after, source="external")
             store.save_run(record)
 
-            providers_used = [p["agent_id"] for p in get_available_providers()]
-            mode = "multi-provider" if len(providers_used) >= 2 else "persona-fallback"
+            # Clear the submission queue
+            store.clear_submissions(task_id)
 
             response = {
                 "run_id": record.run_id,
@@ -105,8 +135,6 @@ class handler(BaseHTTPRequestHandler):
                 "profiles_before": profiles_before,
                 "profiles_after": profiles_after,
                 "logs": logs,
-                "mode": mode,
-                "providers_used": providers_used,
             }
 
             self.send_response(200)
@@ -114,13 +142,6 @@ class handler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(json.dumps(response).encode())
-
-        except EnvironmentError as e:
-            self.send_response(400)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": str(e)}).encode())
 
         except ValueError as e:
             self.send_response(400)

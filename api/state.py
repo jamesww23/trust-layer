@@ -11,6 +11,7 @@ from core.config import load_scoring_config
 from urllib.parse import urlparse, parse_qs
 from core.fixtures import load_demo_task, load_seed_profiles, list_scenarios, load_scenario
 from core.store import RedisStore
+from core.llm import get_available_providers
 
 
 class handler(BaseHTTPRequestHandler):
@@ -37,12 +38,18 @@ class handler(BaseHTTPRequestHandler):
             else:
                 task, candidates = load_demo_task()
 
+            available_providers = [
+                {"agent_id": p["agent_id"], "agent_name": p["agent_name"], "provider": p["provider"]}
+                for p in get_available_providers()
+            ]
+
             response = {
                 "profiles": [p.to_dict() for p in profiles],
                 "task": task.to_dict(),
                 "candidates": [c.to_dict() for c in candidates],
                 "config": config.to_dict(),
                 "scenarios": scenarios,
+                "available_providers": available_providers,
             }
 
             self.send_response(200)

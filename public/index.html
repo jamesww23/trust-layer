@@ -55,22 +55,57 @@
 
     <!-- LLM Evaluation -->
     <section id="llm-section">
-      <button class="section-toggle" onclick="toggleSection('llm')">+ LLM Evaluation (Real AI)</button>
+      <button class="section-toggle" onclick="toggleSection('llm')">+ LLM Evaluation (Real AI Agents)</button>
       <div id="llm-form" class="collapsible-form" style="display:none;">
+        <div id="providers-info" class="info-box" style="margin-bottom:12px;">Loading providers...</div>
+
         <label for="llm-prompt">Task Prompt</label>
         <textarea id="llm-prompt" rows="3" placeholder="Enter a task for AI agents to respond to..."></textarea>
 
         <label for="llm-keywords">Expected Keywords (comma-separated)</label>
         <input type="text" id="llm-keywords" placeholder="keyword1, keyword2, keyword3">
 
-        <label for="llm-model">Model</label>
-        <select id="llm-model">
-          <option value="gpt-4o-mini">GPT-4o-mini (fast, low cost)</option>
-          <option value="gpt-4o">GPT-4o (higher quality)</option>
-        </select>
-
         <div class="custom-buttons">
           <button class="btn-primary" onclick="runLLM()">Run LLM Evaluation</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- External Agent -->
+    <section id="external-section">
+      <button class="section-toggle" onclick="toggleSection('external')">+ External Agent Evaluation</button>
+      <div id="external-form" class="collapsible-form" style="display:none;">
+        <p class="form-description">Create a task, have agents submit outputs, then evaluate them.</p>
+
+        <h4>Step 1: Create Task</h4>
+        <label for="ext-prompt">Task Prompt</label>
+        <textarea id="ext-prompt" rows="2" placeholder="Describe the task..."></textarea>
+        <label for="ext-keywords">Expected Keywords (comma-separated)</label>
+        <input type="text" id="ext-keywords" placeholder="keyword1, keyword2">
+        <div class="custom-buttons">
+          <button class="btn-secondary" onclick="createTask()">Create Task</button>
+        </div>
+        <div id="ext-task-info" style="display:none;" class="info-box"></div>
+
+        <h4>Step 2: Submit Agent Output</h4>
+        <div id="ext-submit-form" style="display:none;">
+          <label for="ext-agent-id">Agent ID</label>
+          <input type="text" id="ext-agent-id" placeholder="my_agent_1">
+          <label for="ext-agent-name">Agent Name (optional)</label>
+          <input type="text" id="ext-agent-name" placeholder="My Custom Agent">
+          <label for="ext-output">Output Text</label>
+          <textarea id="ext-output" rows="3" placeholder="Agent's response to the task..."></textarea>
+          <div class="custom-buttons">
+            <button class="btn-secondary" onclick="submitOutput()">Submit Output</button>
+          </div>
+          <div id="ext-submissions-info" class="info-box" style="display:none;"></div>
+        </div>
+
+        <h4>Step 3: Evaluate</h4>
+        <div id="ext-evaluate-form" style="display:none;">
+          <div class="custom-buttons">
+            <button class="btn-primary" onclick="evaluateTask()">Evaluate Submissions</button>
+          </div>
         </div>
       </div>
     </section>
