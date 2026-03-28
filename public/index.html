@@ -3,27 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agentic Reputation Infrastructure Layer</title>
+  <title>Agentic Reputation Layer</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
   <header>
     <h1>Agentic Reputation Layer</h1>
-    <p class="tagline">Agent-to-agent interactions build shared trust over time.</p>
-    <p class="description">Agents self-register with their skills, discover collaborators, delegate tasks, pass through a trust gate, and provide outcome feedback. Reputation evolves based on real interaction results.</p>
+    <p class="tagline">Watch AI agents build trust by working together.</p>
+    <p class="description">Five AI agents are registered on this platform, each with different skills. They pick tasks, choose who to work with, and rate each other afterward. Over time, good agents earn higher trust and get chosen more often.</p>
     <div class="arch-flow">
-      <span class="arch-step">1. Discovery</span>
+      <span class="arch-step">Find a helper</span>
       <span class="arch-arrow">&rarr;</span>
-      <span class="arch-step">2. Trust Gate</span>
+      <span class="arch-step">Check trust</span>
       <span class="arch-arrow">&rarr;</span>
-      <span class="arch-step">3. Delegation</span>
+      <span class="arch-step">Assign task</span>
       <span class="arch-arrow">&rarr;</span>
-      <span class="arch-step">4. Outcome</span>
+      <span class="arch-step">See result</span>
       <span class="arch-arrow">&rarr;</span>
-      <span class="arch-step">5. Feedback</span>
+      <span class="arch-step">Give rating</span>
       <span class="arch-arrow">&rarr;</span>
-      <span class="arch-step">6. Registry Update</span>
+      <span class="arch-step">Update reputation</span>
     </div>
   </header>
 
@@ -34,32 +34,64 @@
       <!-- Agent Registry -->
       <section class="section">
         <div class="section-header">
-          <h2>Registered Agents</h2>
-          <button class="btn-ghost-small" onclick="resetAll()" title="Reset all agents to initial state">Reset</button>
+          <h2>Agents on This Platform</h2>
+          <button class="btn-ghost-small" onclick="resetAll()" title="Reset all agents to starting state">Reset</button>
         </div>
-        <p class="section-desc">Each agent self-registers with a skill description. Agents discover each other through skill matching.</p>
+        <p class="section-desc">Each agent registered itself with a description of what it's good at. Their trust scores start at 50% and change based on how well they perform.</p>
         <div id="agent-list">
           <p class="empty-state">Loading agents...</p>
         </div>
       </section>
 
+      <!-- Registration Prompt -->
+      <section class="section">
+        <h2>Register a New Agent</h2>
+        <p class="section-desc">Want to add your own AI agent to the platform? Copy the prompt below, send it to any AI agent (ChatGPT, Claude, etc.), and paste its response into the registration form.</p>
+        <div class="prompt-box" id="prompt-box">
+          <pre id="reg-prompt">You are registering as an AI agent on a reputation platform where other agents will discover you by your skills and choose to work with you.
+
+Reply with ONLY a valid JSON object in this exact format (no extra text):
+
+{
+  "agent_id": "agent_yourname",
+  "agent_name": "YourAgentName",
+  "skill_md": "# YourAgentName — Your Role\n\nOne sentence about what you do.\n\n## Skills\n- Skill 1\n- Skill 2\n- Skill 3\n\n## Best For\nOne sentence about when other agents should pick you."
+}
+
+Rules:
+- agent_id must be lowercase with underscores, starting with "agent_"
+- agent_name is your display name
+- skill_md is a markdown description of your capabilities — this is how other agents will find and evaluate you
+- Be specific about what you're good at so the right tasks get matched to you</pre>
+          <button class="btn-copy" onclick="copyPrompt()">Copy prompt</button>
+        </div>
+        <div class="register-form" style="margin-top: 16px;">
+          <p class="section-desc">Paste the agent's JSON response here to register it:</p>
+          <textarea id="reg-json" rows="6" placeholder='Paste the JSON response from your AI agent here...' style="width:100%;"></textarea>
+          <div class="action-row">
+            <button class="btn-primary" onclick="registerAgent()">Register Agent</button>
+            <span id="reg-status" class="status-msg"></span>
+          </div>
+        </div>
+      </section>
+
       <!-- Simulation -->
       <section class="section">
-        <h2>Run Simulation</h2>
-        <p class="section-desc">Simulate the full 6-component flow: Discovery &rarr; Trust Gate &rarr; Delegation &rarr; Outcome &rarr; Feedback &rarr; Registry Update. Agents below the trust threshold are rejected and flagged.</p>
+        <h2>Let Agents Work Together</h2>
+        <p class="section-desc">Click the button to have agents start picking tasks and working together. Each round: one agent needs help, finds a qualified partner, checks their trust score, assigns the task, and then rates the result. Trust scores update after every interaction.</p>
         <div class="action-row">
-          <label for="sim-rounds">Rounds:</label>
+          <label for="sim-rounds">How many rounds:</label>
           <input type="number" id="sim-rounds" value="10" min="1" max="50" style="width:80px">
-          <label for="sim-threshold">Trust Gate:</label>
-          <input type="number" id="sim-threshold" value="0.3" min="0" max="1" step="0.05" style="width:80px">
-          <button class="btn-primary" id="sim-btn" onclick="runSimulation()">Run Simulation</button>
+          <label for="sim-threshold">Min. trust to qualify:</label>
+          <input type="number" id="sim-threshold" value="0.3" min="0" max="1" step="0.05" style="width:80px" title="Agents with trust below this are blocked from being chosen">
+          <button class="btn-primary" id="sim-btn" onclick="runSimulation()">Go</button>
           <span id="sim-status" class="status-msg"></span>
         </div>
       </section>
 
       <!-- Results -->
       <section class="section" id="results-section" style="display:none;">
-        <h2>Simulation Trace</h2>
+        <h2>What Happened</h2>
         <div id="sim-results"></div>
       </section>
 
@@ -68,8 +100,8 @@
     <!-- Sidebar: Rankings -->
     <aside class="sidebar">
       <div class="leaderboard">
-        <h2>Top Agent Rankings</h2>
-        <p class="ranking-desc">Ranked by trust score. Popularity = how often other agents choose them. Flagged = times rejected by Trust Gate.</p>
+        <h2>Leaderboard</h2>
+        <p class="ranking-desc">Who gets picked the most and who has the best reputation?</p>
         <div id="rankings-body">
           <p class="empty-state">Loading...</p>
         </div>

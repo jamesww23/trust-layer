@@ -18,7 +18,7 @@ async function loadAgents() {
   }
 }
 
-// --- Agent List (self-presenting with skill.md) ---
+// --- Agent Cards ---
 function renderAgentList(agents) {
   const el = document.getElementById("agent-list");
   if (!agents || agents.length === 0) {
@@ -28,7 +28,7 @@ function renderAgentList(agents) {
   el.innerHTML = agents.map(a => {
     const skillHtml = renderSkillMd(a.skill_md);
     const flaggedHtml = a.flagged > 0
-      ? `<span class="stat flagged-stat">Flagged: <strong>${a.flagged}</strong></span>`
+      ? `<span class="stat flagged-stat">Blocked: <strong>${a.flagged} times</strong></span>`
       : '';
     return `
       <div class="agent-card">
@@ -44,7 +44,7 @@ function renderAgentList(agents) {
         </div>
         <div class="agent-skill-md">${skillHtml}</div>
         <div class="agent-stats">
-          <span class="stat">Interactions: <strong>${a.total_runs}</strong></span>
+          <span class="stat">Tasks completed: <strong>${a.total_runs}</strong></span>
           ${flaggedHtml}
         </div>
       </div>
@@ -56,7 +56,7 @@ function renderAgentList(agents) {
 function renderSkillMd(md) {
   if (!md) return "";
   return esc(md)
-    .replace(/^# (.+)$/gm, '')  // skip h1 (already shown as agent name)
+    .replace(/^# (.+)$/gm, '')
     .replace(/^## (.+)$/gm, '<div class="skill-heading">$1</div>')
     .replace(/^- (.+)$/gm, '<div class="skill-item">$1</div>')
     .replace(/\n\n+/g, '<br>')
@@ -64,7 +64,7 @@ function renderSkillMd(md) {
     .trim();
 }
 
-// --- Rankings Sidebar (trust + popularity + flagged) ---
+// --- Leaderboard Sidebar ---
 function renderRankings(agents) {
   const el = document.getElementById("rankings-body");
   if (!agents || agents.length === 0) {
@@ -78,7 +78,7 @@ function renderRankings(agents) {
     const popularity = a.total_runs > 0 ? Math.round((a.total_runs / maxRuns) * 100) : 0;
     const medal = i === 0 ? ' medal' : '';
     const flaggedTag = a.flagged > 0
-      ? `<span class="rank-flagged">${a.flagged} flagged</span>`
+      ? `<span class="rank-flagged">${a.flagged}x blocked</span>`
       : '';
     return `
       <div class="rank-row">
@@ -88,7 +88,7 @@ function renderRankings(agents) {
           <div class="rank-bar-container">
             <div class="rank-bar" style="width:${popularity}%"></div>
           </div>
-          <span class="rank-pop">${a.total_runs} interactions ${flaggedTag}</span>
+          <span class="rank-pop">${a.total_runs} tasks ${flaggedTag}</span>
         </div>
         <span class="rank-score${medal}">${(a.success_rate * 100).toFixed(1)}%</span>
       </div>
@@ -105,7 +105,7 @@ async function runSimulation() {
   const trust_threshold = isNaN(threshold) ? 0.3 : threshold;
 
   btn.disabled = true;
-  status.textContent = "Simulating " + rounds + " rounds...";
+  status.textContent = "Running " + rounds + " rounds...";
 
   try {
     const res = await fetch(API + "/api/run-simulation", {
@@ -137,18 +137,18 @@ function renderSimResults(data) {
     : "30%";
 
   let html = `
-    <div class="results-summary">${data.rounds} rounds completed &middot; Trust Gate threshold: ${thresholdPct}</div>
+    <p class="results-summary">${data.rounds} rounds completed. Agents with trust below ${thresholdPct} were blocked from being chosen.</p>
     <table class="sim-table">
       <thead>
         <tr>
-          <th>#</th>
+          <th>Round</th>
           <th>Task</th>
-          <th>Requester</th>
-          <th>Provider</th>
-          <th>Gate</th>
-          <th>Outcome</th>
-          <th>Feedback</th>
-          <th>Trust Change</th>
+          <th>Who asked</th>
+          <th>Who helped</th>
+          <th>Allowed?</th>
+          <th>Result</th>
+          <th>Rating</th>
+          <th>Trust change</th>
         </tr>
       </thead>
       <tbody>
@@ -156,23 +156,22 @@ function renderSimResults(data) {
 
   for (const r of data.history) {
     const gateHtml = r.gate_passed
-      ? '<span class="gate-pass">Passed</span>'
-      : '<span class="gate-reject">Rejected</span>';
+      ? '<span class="gate-pass">Yes</span>'
+      : '<span class="gate-reject">Blocked</span>';
 
     let outcomeHtml, feedbackHtml, trustHtml;
 
     if (r.outcome === null || r.outcome === undefined) {
-      // All candidates rejected by trust gate
-      outcomeHtml = '<span class="outcome-skip">—</span>';
+      outcomeHtml = '<span class="outcome-skip">No one qualified</span>';
       feedbackHtml = '—';
       trustHtml = '—';
     } else {
       const outcomeClass = r.outcome ? "outcome-success" : "outcome-fail";
-      const outcomeText = r.outcome ? "Success" : "Failure";
+      const outcomeText = r.outcome ? "Good" : "Poor";
       outcomeHtml = `<span class="${outcomeClass}">${outcomeText}</span>`;
 
       feedbackHtml = r.feedback_score != null
-        ? `<span class="feedback-score">${r.feedback_score.toFixed(2)}</span>`
+        ? `<span class="feedback-score">${(r.feedback_score * 100).toFixed(0)}%</span>`
         : '—';
 
       const arrow = r.trust_after >= r.trust_before ? "↑" : "↓";
@@ -181,7 +180,7 @@ function renderSimResults(data) {
     }
 
     const rejectedNote = r.gate_rejected && r.gate_rejected.length > 0
-      ? ` <span class="rejected-count">(${r.gate_rejected.length} rejected)</span>`
+      ? ` <span class="rejected-count">(${r.gate_rejected.length} blocked)</span>`
       : '';
 
     html += `
@@ -200,8 +199,8 @@ function renderSimResults(data) {
   html += "</tbody></table>";
 
   // Final rankings
-  html += '<h3 class="final-title">Final Trust Rankings</h3>';
-  html += '<table class="sim-table"><thead><tr><th>#</th><th>Agent</th><th>Trust Score</th><th>Interactions</th><th>Flagged</th></tr></thead><tbody>';
+  html += '<h3 class="final-title">Final Standings</h3>';
+  html += '<table class="sim-table"><thead><tr><th>#</th><th>Agent</th><th>Trust</th><th>Tasks done</th><th>Times blocked</th></tr></thead><tbody>';
   data.final_agents.forEach((a, i) => {
     const flaggedCell = a.flagged > 0
       ? `<span class="flagged-count">${a.flagged}</span>`
@@ -220,6 +219,57 @@ function renderSimResults(data) {
 
   el.innerHTML = html;
   section.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// --- Copy Registration Prompt ---
+function copyPrompt() {
+  const text = document.getElementById("reg-prompt").textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector(".btn-copy");
+    btn.textContent = "Copied!";
+    setTimeout(() => { btn.textContent = "Copy prompt"; }, 2000);
+  });
+}
+
+// --- Register Agent from JSON ---
+async function registerAgent() {
+  const status = document.getElementById("reg-status");
+  const textarea = document.getElementById("reg-json");
+  const raw = textarea.value.trim();
+
+  if (!raw) {
+    status.textContent = "Paste the agent's JSON response first.";
+    return;
+  }
+
+  let body;
+  try {
+    body = JSON.parse(raw);
+  } catch (e) {
+    status.textContent = "Invalid JSON. Make sure you pasted the full response.";
+    return;
+  }
+
+  if (!body.agent_id || !body.agent_name || !body.skill_md) {
+    status.textContent = "Missing required fields: agent_id, agent_name, skill_md";
+    return;
+  }
+
+  status.textContent = "Registering...";
+  try {
+    const res = await fetch(API + "/api/register-agent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Registration failed");
+    status.textContent = body.agent_name + " registered!";
+    textarea.value = "";
+    loadAgents();
+  } catch (err) {
+    status.textContent = "Error: " + err.message;
+  }
 }
 
 // --- Reset ---
