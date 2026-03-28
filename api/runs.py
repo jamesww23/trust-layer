@@ -18,8 +18,34 @@ class handler(BaseHTTPRequestHandler):
 
             parsed = urlparse(self.path)
             params = parse_qs(parsed.query)
-            limit = int(params.get("limit", ["50"])[0])
-            offset = int(params.get("offset", ["0"])[0])
+
+            try:
+                limit = int(params.get("limit", ["50"])[0])
+            except (ValueError, TypeError):
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "limit must be an integer"}).encode())
+                return
+
+            try:
+                offset = int(params.get("offset", ["0"])[0])
+            except (ValueError, TypeError):
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "offset must be an integer"}).encode())
+                return
+
+            if limit < 0 or offset < 0:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "limit and offset must be non-negative"}).encode())
+                return
 
             runs = store.list_runs(limit=limit, offset=offset)
 

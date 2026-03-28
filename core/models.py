@@ -54,9 +54,16 @@ class Task:
             raise ValueError("task_id cannot be empty")
         if not prompt or not prompt.strip():
             raise ValueError("prompt cannot be empty")
+        if expected_keywords is None:
+            expected_keywords = []
+        if not isinstance(expected_keywords, list):
+            raise ValueError("expected_keywords must be a list")
+        for i, kw in enumerate(expected_keywords):
+            if not isinstance(kw, str):
+                raise ValueError(f"expected_keywords[{i}] must be a string, got {type(kw).__name__}")
         self.task_id = task_id
         self.prompt = prompt
-        self.expected_keywords = expected_keywords or []
+        self.expected_keywords = expected_keywords
 
     def to_dict(self) -> dict:
         return {

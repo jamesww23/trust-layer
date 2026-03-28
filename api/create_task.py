@@ -41,6 +41,14 @@ class handler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": f"Malformed JSON: {e}"}).encode())
                 return
 
+            if not isinstance(body, dict):
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Request body must be a JSON object"}).encode())
+                return
+
             prompt = body.get("prompt", "").strip()
             if not prompt:
                 self.send_response(400)

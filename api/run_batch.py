@@ -39,6 +39,14 @@ class handler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps({"error": f"Malformed JSON: {e}"}).encode())
                     return
 
+            if not isinstance(body, dict):
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Request body must be a JSON object"}).encode())
+                return
+
             mode = body.get("mode", "scenarios")
             config = load_scoring_config()
             engine = ScoringEngine(config)
@@ -54,7 +62,22 @@ class handler(BaseHTTPRequestHandler):
 
             elif mode == "repeat":
                 task_id = body.get("task_id")
-                count = min(body.get("count", 3), 10)  # cap at 10
+                count_raw = body.get("count", 3)
+                if not isinstance(count_raw, int) or isinstance(count_raw, bool):
+                    self.send_response(400)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": "count must be an integer"}).encode())
+                    return
+                if count_raw < 1:
+                    self.send_response(400)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": "count must be at least 1"}).encode())
+                    return
+                count = min(count_raw, 10)
                 if not task_id:
                     self.send_response(400)
                     self.send_header("Content-Type", "application/json")
@@ -83,8 +106,23 @@ class handler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps({"error": "Maximum 5 prompts per batch (Vercel timeout)"}).encode())
                     return
 
+                if not isinstance(prompts, list):
+                    self.send_response(400)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": "prompts must be an array"}).encode())
+                    return
+                for i, p in enumerate(prompts):
+                    if not isinstance(p, dict):
+                        self.send_response(400)
+                        self.send_header("Content-Type", "application/json")
+                        self.send_header("Access-Control-Allow-Origin", "*")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": f"prompts[{i}] must be a JSON object"}).encode())
+                        return
+
                 from core.llm import generate_candidates
-                model = body.get("model", "gpt-4o-mini")
                 for p in prompts:
                     prompt = p.get("prompt", "").strip()
                     keywords = p.get("expected_keywords", [])
@@ -92,7 +130,7 @@ class handler(BaseHTTPRequestHandler):
                         continue
                     task_id = f"llm_{uuid.uuid4().hex[:8]}"
                     task = Task(task_id=task_id, prompt=prompt, expected_keywords=keywords)
-                    candidates = generate_candidates(prompt, task_id, model=model)
+                    candidates = generate_candidates(prompt, task_id)
                     tasks_and_candidates.append((task, candidates))
             else:
                 self.send_response(400)

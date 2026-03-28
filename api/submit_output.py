@@ -37,6 +37,14 @@ class handler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": f"Malformed JSON: {e}"}).encode())
                 return
 
+            if not isinstance(body, dict):
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Request body must be a JSON object"}).encode())
+                return
+
             task_id = body.get("task_id", "").strip()
             agent_id = body.get("agent_id", "").strip()
             agent_name = body.get("agent_name", "").strip() or agent_id
