@@ -1,248 +1,335 @@
-/* Trust Layer MVP — Frontend Logic */
+/* Trust Layer MVP — Redesigned Frontend */
 
 const API_BASE = window.location.origin;
 let currentRunId = null;
+let currentTab = "demo";
 
-// --- Page Load ---
+// --- Init ---
 document.addEventListener("DOMContentLoaded", () => {
   loadState();
   loadHistory();
 });
 
+// --- Tabs ---
+function switchTab(tab) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
+  document.querySelectorAll(".tab-content").forEach(s => s.classList.toggle("active", s.id === "tab-" + tab));
+  currentTab = tab;
+  if (tab === "history") loadHistory();
+}
+
+// --- Load State ---
 async function loadState() {
   try {
     const res = await fetch(API_BASE + "/api/state");
     if (!res.ok) throw new Error("Failed to load state");
     const data = await res.json();
-    renderProfiles(data.profiles);
-    renderTask(data.task);
-    renderCandidates(data.candidates);
-    renderConfig(data.config);
+    renderLeaderboard(data.profiles, data.config);
+    renderDemoTask(data.task);
+    renderDemoCandidates(data.candidates);
     if (data.scenarios) renderScenarios(data.scenarios);
     if (data.available_providers) renderProviders(data.available_providers);
   } catch (err) {
-    setStatus("Error loading state: " + err.message);
+    setStatus("demo", "Error loading: " + err.message);
   }
 }
 
-// --- Scenario Selection ---
+// --- Leaderboard ---
+function renderLeaderboard(profiles, config) {
+  const el = document.getElementById("leaderboard-body");
+  if (!profiles || profiles.length === 0) {
+    el.innerHTML = '<p class="empty-state">No agents yet</p>';
+    return;
+  }
+  // Sort by success_rate DESC, then total_runs DESC
+  const sorted = [...profiles].sort((a, b) => b.success_rate - a.success_rate || b.total_runs - a.total_runs);
+  el.innerHTML = sorted.map((p, i) => `
+    <div class="leaderboard-agent">
+      <div class="leaderboard-rank ${i < 3 ? 'top' : ''}">${i + 1}</div>
+      <div class="leaderboard-info">
+        <div class="leaderboard-name">${esc(p.agent_name)}</div>
+        <div class="leaderboard-id">${esc(p.agent_id)}</div>
+      </div>
+      <div class="leaderboard-score">
+        <div class="leaderboard-sr">${(p.success_rate * 100).toFixed(1)}%</div>
+        <div class="leaderboard-runs">${p.total_runs} run${p.total_runs !== 1 ? 's' : ''}</div>
+      </div>
+    </div>
+  `).join("");
+
+  // Scoring note
+  if (config) {
+    document.getElementById("scoring-note").textContent =
+      `Score = ${(config.w_reputation * 100).toFixed(0)}% reputation + ${(config.w_relevancy * 100).toFixed(0)}% relevancy`;
+  }
+}
+
+// --- Scenarios ---
 function renderScenarios(scenarios) {
   const select = document.getElementById("scenario-select");
   select.innerHTML = scenarios.map(s =>
-    `<option value="${esc(s.task_id)}">${esc(s.title)} (${esc(s.domain)})</option>`
+    `<option value="${esc(s.task_id)}">${esc(s.title)} — ${esc(s.domain)}</option>`
   ).join("");
 }
 
 async function onScenarioChange() {
-  const select = document.getElementById("scenario-select");
-  const taskId = select.value;
+  const taskId = document.getElementById("scenario-select").value;
   if (!taskId) return;
   try {
     const res = await fetch(API_BASE + "/api/state?task_id=" + encodeURIComponent(taskId));
     if (!res.ok) throw new Error("Failed to load scenario");
     const data = await res.json();
-    renderTask(data.task);
-    renderCandidates(data.candidates);
-    setStatus("");
+    renderDemoTask(data.task);
+    renderDemoCandidates(data.candidates);
   } catch (err) {
-    setStatus("Error loading scenario: " + err.message);
+    setStatus("demo", "Error: " + err.message);
   }
+}
+
+// --- Demo Task/Candidates Preview ---
+function renderDemoTask(task) {
+  document.getElementById("demo-task-prompt").textContent = task.prompt;
+  const kwEl = document.getElementById("demo-task-keywords");
+  kwEl.innerHTML = task.expected_keywords.map(k =>
+    `<span class="keyword-tag">${esc(k)}</span>`
+  ).join("");
+}
+
+function renderDemoCandidates(candidates) {
+  const el = document.getElementById("demo-candidates-list");
+  el.innerHTML = candidates.map(c => `
+    <div class="candidate-preview-item">
+      <div class="agent-label">${esc(c.agent_id)}</div>
+      <div class="agent-output">${esc(truncate(c.output_text, 180))}</div>
+    </div>
+  `).join("");
 }
 
 // --- Run Demo ---
 async function runDemo() {
-  const btn = document.getElementById("run-btn");
+  const btn = document.getElementById("run-demo-btn");
   btn.disabled = true;
-  setStatus("Running evaluation...");
+  setStatus("demo", "Running evaluation...");
   try {
-    const select = document.getElementById("scenario-select");
-    const taskId = select.value;
+    const taskId = document.getElementById("scenario-select").value;
     const body = taskId ? { task_id: taskId } : {};
     const res = await fetch(API_BASE + "/api/run-demo", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || "Run failed");
-    }
+    if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Run failed"); }
     const data = await res.json();
-    renderResults(data);
-    renderProfiles(data.profiles_after);
+    renderResultsInto("demo-results", data);
+    renderLeaderboard(data.profiles_after, null);
     loadHistory();
-    setStatus("Evaluation complete.");
+    setStatus("demo", "");
   } catch (err) {
-    setStatus("Error: " + err.message);
+    setStatus("demo", "Error: " + err.message);
   } finally {
     btn.disabled = false;
   }
 }
 
-// --- Reset ---
-async function resetState() {
-  setStatus("Resetting...");
-  try {
-    const res = await fetch(API_BASE + "/api/reset", { method: "POST" });
-    if (!res.ok) throw new Error("Reset failed");
-    const data = await res.json();
-    renderProfiles(data.profiles);
-    document.getElementById("results-section").style.display = "none";
-    document.getElementById("batch-results-section").style.display = "none";
-    loadHistory();
-    setStatus("Reset to seed values. History cleared.");
-  } catch (err) {
-    setStatus("Error: " + err.message);
-  }
-}
-
-// --- LLM Evaluation ---
+// --- LLM ---
 function renderProviders(providers) {
-  const el = document.getElementById("providers-info");
+  const el = document.getElementById("providers-status");
   if (!providers || providers.length === 0) {
-    el.textContent = "No LLM providers configured. Set API keys in Vercel environment variables.";
+    el.innerHTML = '<span class="provider-tag">No providers configured</span>';
     return;
   }
-  const mode = providers.length >= 2 ? "Multi-provider mode" : "Persona fallback mode (1 provider)";
-  el.textContent = mode + "\nAvailable: " + providers.map(p => p.agent_name + " (" + p.provider + ")").join(", ");
+  el.innerHTML = providers.map(p =>
+    `<span class="provider-tag available">${esc(p.agent_name)}</span>`
+  ).join("");
 }
 
 async function runLLM() {
-  setStatus("Calling LLM agents...");
+  setStatus("llm", "Calling AI agents...");
   try {
     const prompt = document.getElementById("llm-prompt").value.trim();
-    if (!prompt) { setStatus("Task prompt is required."); return; }
-
+    if (!prompt) { setStatus("llm", "Enter a task prompt."); return; }
     const keywordsRaw = document.getElementById("llm-keywords").value.trim();
-    const keywords = keywordsRaw ? keywordsRaw.split(",").map(k => k.trim()).filter(k => k) : [];
+    const keywords = keywordsRaw ? keywordsRaw.split(",").map(k => k.trim()).filter(Boolean) : [];
 
     const res = await fetch(API_BASE + "/api/run-llm", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt, expected_keywords: keywords }),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || "LLM run failed");
-    }
+    if (!res.ok) { const err = await res.json(); throw new Error(err.error || "LLM run failed"); }
     const data = await res.json();
-    renderResults(data, true);
-    renderProfiles(data.profiles_after);
+    renderResultsInto("llm-results", data, true);
+    renderLeaderboard(data.profiles_after, null);
     loadHistory();
-    setStatus("LLM evaluation complete.");
+    setStatus("llm", "");
   } catch (err) {
-    setStatus("Error: " + err.message);
+    setStatus("llm", "Error: " + err.message);
   }
 }
 
-// --- Batch Evaluation ---
-function onBatchModeChange() {
-  const mode = document.getElementById("batch-mode").value;
-  const opts = document.getElementById("batch-options");
-  if (mode === "repeat") {
-    const select = document.getElementById("scenario-select");
-    opts.innerHTML =
-      '<label>Scenario</label>' +
-      '<select id="batch-task-id">' + select.innerHTML + '</select>' +
-      '<label>Repeat Count</label>' +
-      '<input type="number" id="batch-count" value="3" min="1" max="10">';
-  } else {
-    opts.innerHTML = '';
-  }
-}
-
-async function runBatch() {
-  setStatus("Running batch evaluation...");
-  try {
-    const mode = document.getElementById("batch-mode").value;
-    const payload = { mode };
-
-    if (mode === "repeat") {
-      payload.task_id = document.getElementById("batch-task-id").value;
-      payload.count = parseInt(document.getElementById("batch-count").value) || 3;
-    }
-
-    const res = await fetch(API_BASE + "/api/run-batch", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || "Batch failed");
-    }
-    const data = await res.json();
-    renderBatchResults(data);
-    renderProfiles(data.profiles_after);
-    loadHistory();
-    setStatus(`Batch complete: ${data.total_runs} evaluations.`);
-  } catch (err) {
-    setStatus("Error: " + err.message);
-  }
-}
-
-// --- Custom Input ---
+// --- Custom ---
 function addCandidate() {
   const list = document.getElementById("candidates-list");
   const block = document.createElement("div");
   block.className = "candidate-input";
   block.innerHTML =
-    '<input type="text" placeholder="Agent ID (e.g. agent_gamma)" class="cand-agent-id">' +
-    '<textarea rows="2" placeholder="Agent output text..." class="cand-output"></textarea>' +
-    '<button class="remove-cand-btn" onclick="removeCandidate(this)">Remove</button>';
+    '<input type="text" placeholder="Agent name" class="cand-agent-id">' +
+    '<textarea rows="2" placeholder="Paste the agent\'s response here..." class="cand-output"></textarea>' +
+    '<button class="remove-cand-btn" onclick="removeCandidate(this)">&times;</button>';
   list.appendChild(block);
 }
 
 function removeCandidate(btn) {
   const list = document.getElementById("candidates-list");
-  if (list.children.length <= 2) { setStatus("At least 2 candidates required."); return; }
+  if (list.children.length <= 2) { setStatus("custom", "At least 2 agents required."); return; }
   btn.parentElement.remove();
 }
 
 async function runCustom() {
-  setStatus("Running custom evaluation...");
+  setStatus("custom", "Running evaluation...");
   try {
     const prompt = document.getElementById("custom-prompt").value.trim();
-    if (!prompt) { setStatus("Task prompt is required."); return; }
-
+    if (!prompt) { setStatus("custom", "Enter a task description."); return; }
     const keywordsRaw = document.getElementById("custom-keywords").value.trim();
-    const keywords = keywordsRaw ? keywordsRaw.split(",").map(k => k.trim()).filter(k => k) : [];
+    const keywords = keywordsRaw ? keywordsRaw.split(",").map(k => k.trim()).filter(Boolean) : [];
 
     const blocks = document.querySelectorAll(".candidate-input");
     const candidates = [];
     for (const block of blocks) {
       const agentId = block.querySelector(".cand-agent-id").value.trim();
       const outputText = block.querySelector(".cand-output").value.trim();
-      if (!agentId || !outputText) { setStatus("All candidates need Agent ID and output text."); return; }
+      if (!agentId || !outputText) { setStatus("custom", "Fill in all agent names and outputs."); return; }
       candidates.push({ agent_id: agentId, output_text: outputText });
     }
-    if (candidates.length < 2) { setStatus("At least 2 candidates required."); return; }
+    if (candidates.length < 2) { setStatus("custom", "At least 2 agents required."); return; }
     const ids = candidates.map(c => c.agent_id);
-    if (new Set(ids).size !== ids.length) { setStatus("Candidate agent IDs must be unique."); return; }
+    if (new Set(ids).size !== ids.length) { setStatus("custom", "Agent names must be unique."); return; }
 
     const res = await fetch(API_BASE + "/api/run-custom", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ task: { prompt, expected_keywords: keywords }, candidates }),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || "Custom run failed");
-    }
+    if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Custom run failed"); }
     const data = await res.json();
-    renderResults(data);
-    renderProfiles(data.profiles_after);
+    renderResultsInto("custom-results", data);
+    renderLeaderboard(data.profiles_after, null);
     loadHistory();
-    setStatus("Custom evaluation complete.");
+    setStatus("custom", "");
   } catch (err) {
-    setStatus("Error: " + err.message);
+    setStatus("custom", "Error: " + err.message);
   }
 }
 
-// --- Human Feedback ---
-async function submitFeedback(outcome) {
+// --- Results Renderer ---
+function renderResultsInto(containerId, data, showCandidates = false) {
+  const container = document.getElementById(containerId);
+  container.style.display = "block";
+  const result = data.result;
+  const runId = data.run_id || null;
+  currentRunId = runId;
+
+  const winnerId = result.winner_agent_id;
+  const outcomeClass = result.outcome ? "outcome-accepted" : "outcome-rejected";
+  const outcomeText = result.outcome ? "Accepted" : "Rejected";
+
+  // Build reputation diff
+  const before = data.profiles_before ? data.profiles_before.find(p => p.agent_id === winnerId) : null;
+  const after = data.profiles_after ? data.profiles_after.find(p => p.agent_id === winnerId) : null;
+  let repDiffHtml = "";
+  if (before && after) {
+    const dir = after.success_rate >= before.success_rate ? "up" : "down";
+    repDiffHtml = `
+      <div class="rep-diff">
+        <span>${(before.success_rate * 100).toFixed(1)}%</span>
+        <span class="rep-arrow">&rarr;</span>
+        <span class="rep-change-${dir}">${(after.success_rate * 100).toFixed(1)}%</span>
+        <span style="color:#484f58;font-size:12px">(${before.total_runs} &rarr; ${after.total_runs} runs)</span>
+      </div>`;
+  }
+
+  // Build candidate outputs section
+  let candidatesHtml = "";
+  if (showCandidates && data.candidates) {
+    candidatesHtml = `
+      <div class="result-section">
+        <div class="result-section-title">Agent Responses</div>
+        ${data.candidates.map(c => `
+          <div class="result-candidate">
+            <span class="agent-label">${esc(c.agent_id)}</span>
+            <span class="latency">${c.latency_ms}ms</span>
+            <div class="output-text">${esc(c.output_text)}</div>
+          </div>
+        `).join("")}
+      </div>`;
+  }
+
+  container.innerHTML = `
+    <div class="result-winner">
+      <div class="result-winner-label">${outcomeText} Winner</div>
+      <div class="result-winner-name">${esc(winnerId)}</div>
+      <div class="result-winner-score">Trust Score: ${result.winner_score} &nbsp; | &nbsp; Outcome: <span class="${outcomeClass}">${outcomeText}</span></div>
+      ${result.explanation ? `<div class="result-winner-explanation">${esc(result.explanation)}</div>` : ""}
+    </div>
+
+    ${runId ? `
+    <div class="result-feedback" id="feedback-${containerId}">
+      <span>Was this the right choice?</span>
+      <button class="feedback-btn feedback-accept" onclick="submitFeedback(true, '${containerId}')">Yes</button>
+      <button class="feedback-btn feedback-reject" onclick="submitFeedback(false, '${containerId}')">No</button>
+      <span class="feedback-status" id="feedback-status-${containerId}"></span>
+    </div>` : ""}
+
+    ${candidatesHtml}
+
+    <div class="result-section">
+      <div class="result-section-title">Ranking</div>
+      <table class="ranking-table">
+        <thead><tr><th>#</th><th>Agent</th><th>Relevancy</th><th>Trust Score</th><th>Success Rate</th></tr></thead>
+        <tbody>
+          ${result.ranking.map((r, i) => `
+            <tr class="${r.agent_id === winnerId ? 'winner-row' : ''}">
+              <td>${i + 1}</td>
+              <td>${esc(r.agent_id)}</td>
+              <td>${(r.relevancy * 100).toFixed(1)}%</td>
+              <td>${r.trust_score.toFixed(4)}</td>
+              <td>${(r.success_rate * 100).toFixed(1)}%</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="result-section">
+      <div class="result-section-title">Reputation Update — ${esc(winnerId)}</div>
+      ${repDiffHtml}
+    </div>
+
+    <div class="result-section">
+      <button class="logs-toggle" onclick="toggleLogs('${containerId}')">Show evaluation logs</button>
+      <div class="logs-content" id="logs-${containerId}" style="display:none;">${esc(data.logs.join("\n"))}</div>
+    </div>
+  `;
+
+  container.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function toggleLogs(containerId) {
+  const el = document.getElementById("logs-" + containerId);
+  const btn = el.previousElementSibling;
+  if (el.style.display === "none") {
+    el.style.display = "block";
+    btn.textContent = "Hide evaluation logs";
+  } else {
+    el.style.display = "none";
+    btn.textContent = "Show evaluation logs";
+  }
+}
+
+// --- Feedback ---
+async function submitFeedback(outcome, containerId) {
   if (!currentRunId) return;
-  const statusEl = document.getElementById("feedback-status");
+  const statusEl = document.getElementById("feedback-status-" + containerId);
   statusEl.textContent = "Submitting...";
 
   try {
@@ -251,27 +338,38 @@ async function submitFeedback(outcome) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ run_id: currentRunId, outcome }),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || "Feedback failed");
-    }
+    if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Feedback failed"); }
     const data = await res.json();
-    renderProfiles(data.profiles);
+    renderLeaderboard(data.profiles, null);
 
-    // Update winner box outcome display
-    const outcomeText = outcome ? "ACCEPTED" : "REJECTED";
+    const outcomeText = outcome ? "Accepted" : "Rejected";
     const outcomeClass = outcome ? "outcome-accepted" : "outcome-rejected";
-    statusEl.innerHTML = `Overridden to <span class="${outcomeClass}">${outcomeText}</span>`;
+    statusEl.innerHTML = `Overridden: <span class="${outcomeClass}">${outcomeText}</span>`;
 
-    // Disable buttons
-    document.querySelectorAll(".feedback-accept, .feedback-reject").forEach(b => b.disabled = true);
+    const feedbackEl = document.getElementById("feedback-" + containerId);
+    feedbackEl.querySelectorAll(".feedback-btn").forEach(b => b.disabled = true);
     loadHistory();
   } catch (err) {
     statusEl.textContent = "Error: " + err.message;
   }
 }
 
-// --- Run History ---
+// --- Reset ---
+async function resetState() {
+  try {
+    const res = await fetch(API_BASE + "/api/reset", { method: "POST" });
+    if (!res.ok) throw new Error("Reset failed");
+    const data = await res.json();
+    renderLeaderboard(data.profiles, null);
+    // Hide all result containers
+    document.querySelectorAll(".results-container").forEach(el => el.style.display = "none");
+    loadHistory();
+  } catch (err) {
+    console.error("Reset error:", err);
+  }
+}
+
+// --- History ---
 async function loadHistory() {
   try {
     const res = await fetch(API_BASE + "/api/runs?limit=20");
@@ -279,29 +377,31 @@ async function loadHistory() {
     const data = await res.json();
     renderHistory(data.runs);
   } catch (err) {
-    // Silently fail — history is supplementary
+    // Silently fail
   }
 }
 
 function renderHistory(runs) {
   const el = document.getElementById("history-list");
   if (!runs || runs.length === 0) {
-    el.innerHTML = '<p class="loading">No runs yet. Run an evaluation to see history.</p>';
+    el.innerHTML = '<p class="empty-state">No evaluations yet. Run a demo to get started.</p>';
     return;
   }
   let html = '<table class="history-table"><thead><tr>' +
     '<th>Time</th><th>Source</th><th>Task</th><th>Winner</th><th>Score</th><th>Outcome</th>' +
     '</tr></thead><tbody>';
   for (const run of runs) {
-    const time = new Date(run.created_at).toLocaleString();
+    const time = new Date(run.created_at).toLocaleString(undefined, {
+      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
+    });
     const r = run.result;
     const outcomeClass = r.outcome ? "outcome-accepted" : "outcome-rejected";
     const outcomeText = r.outcome ? "Accepted" : "Rejected";
-    const overridden = run.feedback_override ? ' (overridden)' : '';
+    const overridden = run.feedback_override ? ' *' : '';
     html += `<tr>
       <td>${esc(time)}</td>
-      <td>${esc(run.source)}</td>
-      <td>${esc(r.task_id)}</td>
+      <td><span class="source-badge">${esc(run.source)}</span></td>
+      <td>${esc(truncate(r.task_id, 30))}</td>
       <td>${esc(r.winner_agent_id)}</td>
       <td>${r.winner_score}</td>
       <td><span class="${outcomeClass}">${outcomeText}${overridden}</span></td>
@@ -311,263 +411,20 @@ function renderHistory(runs) {
   el.innerHTML = html;
 }
 
-// --- External Agent ---
-let currentExtTaskId = null;
-
-async function createTask() {
-  setStatus("Creating task...");
-  try {
-    const prompt = document.getElementById("ext-prompt").value.trim();
-    if (!prompt) { setStatus("Task prompt is required."); return; }
-
-    const keywordsRaw = document.getElementById("ext-keywords").value.trim();
-    const keywords = keywordsRaw ? keywordsRaw.split(",").map(k => k.trim()).filter(k => k) : [];
-
-    const res = await fetch(API_BASE + "/api/create-task", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, expected_keywords: keywords }),
-    });
-    if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
-    const data = await res.json();
-    currentExtTaskId = data.task_id;
-
-    document.getElementById("ext-task-info").style.display = "block";
-    document.getElementById("ext-task-info").textContent =
-      `Task created: ${data.task_id}\nPrompt: ${data.prompt}\nKeywords: ${data.expected_keywords.join(", ")}`;
-    document.getElementById("ext-submit-form").style.display = "block";
-    document.getElementById("ext-evaluate-form").style.display = "block";
-    setStatus("Task created. Now submit agent outputs.");
-  } catch (err) {
-    setStatus("Error: " + err.message);
-  }
-}
-
-async function submitOutput() {
-  if (!currentExtTaskId) { setStatus("Create a task first."); return; }
-  try {
-    const agentId = document.getElementById("ext-agent-id").value.trim();
-    const agentName = document.getElementById("ext-agent-name").value.trim();
-    const outputText = document.getElementById("ext-output").value.trim();
-
-    if (!agentId) { setStatus("Agent ID is required."); return; }
-    if (!outputText) { setStatus("Output text is required."); return; }
-
-    const res = await fetch(API_BASE + "/api/submit-output", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        task_id: currentExtTaskId,
-        agent_id: agentId,
-        agent_name: agentName || agentId,
-        output_text: outputText,
-      }),
-    });
-    if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
-    const data = await res.json();
-
-    const info = document.getElementById("ext-submissions-info");
-    info.style.display = "block";
-    info.textContent = `${data.submissions_count} submission(s) queued for ${currentExtTaskId}`;
-
-    // Clear form for next submission
-    document.getElementById("ext-agent-id").value = "";
-    document.getElementById("ext-agent-name").value = "";
-    document.getElementById("ext-output").value = "";
-    setStatus(`Output from ${agentId} queued.`);
-  } catch (err) {
-    setStatus("Error: " + err.message);
-  }
-}
-
-async function evaluateTask() {
-  if (!currentExtTaskId) { setStatus("Create a task first."); return; }
-  setStatus("Evaluating submissions...");
-  try {
-    const res = await fetch(API_BASE + "/api/evaluate-task", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ task_id: currentExtTaskId }),
-    });
-    if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
-    const data = await res.json();
-    renderResults(data, true);
-    renderProfiles(data.profiles_after);
-    loadHistory();
-    setStatus("External agent evaluation complete.");
-  } catch (err) {
-    setStatus("Error: " + err.message);
-  }
-}
-
-// --- Renderers ---
-function renderProfiles(profiles) {
-  const tbody = document.getElementById("profiles-body");
-  if (!profiles || profiles.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="loading">No profiles found</td></tr>';
-    return;
-  }
-  profiles.sort((a, b) => a.agent_id.localeCompare(b.agent_id));
-  tbody.innerHTML = profiles.map(p => `
-    <tr>
-      <td>${esc(p.agent_id)}</td>
-      <td>${esc(p.agent_name)}</td>
-      <td>${p.success_rate.toFixed(4)}</td>
-      <td>${p.total_runs}</td>
-      <td>${esc(p.version)}</td>
-    </tr>
-  `).join("");
-}
-
-function renderTask(task) {
-  document.getElementById("task-info").textContent =
-    `ID: ${task.task_id}\nPrompt: ${task.prompt}\nKeywords: ${task.expected_keywords.join(", ")}`;
-}
-
-function renderCandidates(candidates) {
-  document.getElementById("candidates-info").textContent = candidates.map(c =>
-    `[${c.agent_id}] ${c.output_text.substring(0, 120)}${c.output_text.length > 120 ? "..." : ""}`
-  ).join("\n\n");
-}
-
-function renderConfig(config) {
-  document.getElementById("config-info").textContent =
-    `w_reputation: ${config.w_reputation}\nw_relevancy: ${config.w_relevancy}`;
-}
-
-function renderResults(data, showCandidates = false) {
-  const section = document.getElementById("results-section");
-  section.style.display = "block";
-  document.getElementById("batch-results-section").style.display = "none";
-
-  const result = data.result;
-  currentRunId = data.run_id || null;
-
-  // Winner box
-  const winnerBox = document.getElementById("winner-box");
-  const outcomeClass = result.outcome ? "outcome-accepted" : "outcome-rejected";
-  const outcomeText = result.outcome ? "ACCEPTED" : "REJECTED";
-  winnerBox.innerHTML =
-    `<div class="winner-label">Winner: ${esc(result.winner_agent_id)}</div>` +
-    `<div>Trust Score: ${result.winner_score}</div>` +
-    `<div>Outcome: <span class="${outcomeClass}">${outcomeText}</span></div>` +
-    `<div style="margin-top:8px;color:#8b949e;font-size:13px">${esc(result.explanation)}</div>`;
-
-  // Feedback buttons
-  const feedbackSection = document.getElementById("feedback-section");
-  if (currentRunId) {
-    feedbackSection.style.display = "block";
-    document.querySelectorAll(".feedback-accept, .feedback-reject").forEach(b => b.disabled = false);
-    document.getElementById("feedback-status").textContent = "";
-  } else {
-    feedbackSection.style.display = "none";
-  }
-
-  // Candidate outputs (for LLM runs)
-  const candOutSection = document.getElementById("candidates-output-section");
-  if (showCandidates && data.candidates) {
-    candOutSection.style.display = "block";
-    document.getElementById("candidates-output").textContent = data.candidates.map(c =>
-      `[${c.agent_id}] (${c.latency_ms}ms)\n${c.output_text}`
-    ).join("\n\n---\n\n");
-  } else {
-    candOutSection.style.display = "none";
-  }
-
-  // Ranking table
-  const tbody = document.getElementById("ranking-body");
-  tbody.innerHTML = result.ranking.map((r, i) => {
-    const isWinner = r.agent_id === result.winner_agent_id;
-    return `<tr class="${isWinner ? "winner-row" : ""}">
-      <td>#${i + 1}</td><td>${esc(r.agent_id)}</td>
-      <td>${r.relevancy.toFixed(4)}</td><td>${r.trust_score.toFixed(4)}</td>
-      <td>${r.success_rate.toFixed(4)}</td>
-    </tr>`;
-  }).join("");
-
-  // Reputation diff
-  const diffEl = document.getElementById("reputation-diff");
-  const winnerId = result.winner_agent_id;
-  const before = data.profiles_before.find(p => p.agent_id === winnerId);
-  const after = data.profiles_after.find(p => p.agent_id === winnerId);
-  if (before && after) {
-    diffEl.textContent =
-      `Agent: ${winnerId}\nsuccess_rate: ${before.success_rate.toFixed(4)} -> ${after.success_rate.toFixed(4)}\ntotal_runs:   ${before.total_runs} -> ${after.total_runs}`;
-  } else if (after) {
-    diffEl.textContent =
-      `Agent: ${winnerId} (new)\nsuccess_rate: 0.5000 -> ${after.success_rate.toFixed(4)}\ntotal_runs:   0 -> ${after.total_runs}`;
-  }
-
-  // Logs
-  document.getElementById("logs-output").textContent = data.logs.join("\n");
-  section.scrollIntoView({ behavior: "smooth" });
-}
-
-function renderBatchResults(data) {
-  document.getElementById("results-section").style.display = "none";
-  const section = document.getElementById("batch-results-section");
-  section.style.display = "block";
-
-  // Summary
-  document.getElementById("batch-summary").textContent =
-    `Total runs: ${data.total_runs}\nRun IDs: ${data.run_ids.join(", ")}`;
-
-  // Aggregate stats table
-  const tbody = document.getElementById("batch-stats-body");
-  const stats = data.aggregate_stats;
-  tbody.innerHTML = Object.keys(stats).sort((a, b) => stats[b].wins - stats[a].wins).map(aid =>
-    `<tr><td>${esc(aid)}</td><td>${stats[aid].wins}</td><td>${stats[aid].avg_score}</td></tr>`
-  ).join("");
-
-  // Per-run results
-  const runsList = document.getElementById("batch-runs-list");
-  runsList.innerHTML = data.results.map((r, i) => {
-    const outcomeClass = r.outcome ? "outcome-accepted" : "outcome-rejected";
-    const outcomeText = r.outcome ? "Accepted" : "Rejected";
-    return `<div class="batch-run-item">
-      <strong>Run ${i + 1}:</strong> ${esc(r.task_id)} | Winner: ${esc(r.winner_agent_id)} (${r.winner_score}) | <span class="${outcomeClass}">${outcomeText}</span>
-    </div>`;
-  }).join("");
-
-  // Reputation timeline
-  const timeline = data.reputation_timeline;
-  if (timeline && timeline.length > 0) {
-    const agents = {};
-    timeline.forEach((snapshot, i) => {
-      snapshot.forEach(p => {
-        if (!agents[p.agent_id]) agents[p.agent_id] = [];
-        agents[p.agent_id].push({ run: i + 1, sr: p.success_rate, runs: p.total_runs });
-      });
-    });
-    let text = "";
-    for (const [aid, entries] of Object.entries(agents).sort()) {
-      text += `${aid}: ` + entries.map(e => `${e.sr.toFixed(4)} (${e.runs})`).join(" -> ") + "\n";
-    }
-    document.getElementById("reputation-timeline").textContent = text;
-  }
-
-  section.scrollIntoView({ behavior: "smooth" });
-}
-
-// --- UI Helpers ---
-function toggleSection(name) {
-  const form = document.getElementById(name + "-form");
-  const btn = form.previousElementSibling;
-  if (form.style.display === "none") {
-    form.style.display = "block";
-    btn.textContent = btn.textContent.replace("+", "\u2212");
-  } else {
-    form.style.display = "none";
-    btn.textContent = btn.textContent.replace("\u2212", "+");
-  }
-}
-
-function setStatus(msg) {
-  document.getElementById("status-msg").textContent = msg;
+// --- Helpers ---
+function setStatus(tab, msg) {
+  const el = document.getElementById(tab + "-status");
+  if (el) el.textContent = msg;
 }
 
 function esc(str) {
+  if (str == null) return "";
   const div = document.createElement("div");
-  div.textContent = str;
+  div.textContent = String(str);
   return div.innerHTML;
+}
+
+function truncate(str, len) {
+  if (!str) return "";
+  return str.length > len ? str.substring(0, len) + "..." : str;
 }

@@ -3,230 +3,158 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trust Layer MVP</title>
+  <title>Trust Layer — AI Agent Reputation System</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+
+  <!-- Hero -->
   <header>
     <h1>Trust Layer</h1>
-    <p class="subtitle">Reputation-based decision system for AI agents</p>
+    <p class="tagline">Which AI agent should you trust? Run a task, compare outputs, and let reputation decide.</p>
+    <p class="description">Every time an agent wins an evaluation, its reputation updates. Over time, the system learns which agents deliver the best results for each type of task.</p>
   </header>
 
-  <main>
-    <!-- Section 1: Current State -->
-    <section id="state-section">
-      <h2>Agent Reputation State</h2>
-      <table id="profiles-table">
-        <thead>
-          <tr>
-            <th>Agent ID</th>
-            <th>Name</th>
-            <th>Success Rate</th>
-            <th>Total Runs</th>
-            <th>Version</th>
-          </tr>
-        </thead>
-        <tbody id="profiles-body">
-          <tr><td colspan="5" class="loading">Loading...</td></tr>
-        </tbody>
-      </table>
+  <div class="layout">
 
-      <h3>Task</h3>
-      <div id="task-info" class="info-box">Loading...</div>
+    <!-- Left: Main Content -->
+    <div class="main-content">
 
-      <h3>Candidates</h3>
-      <div id="candidates-info" class="info-box">Loading...</div>
+      <!-- Tabs -->
+      <nav class="tabs">
+        <button class="tab active" data-tab="demo" onclick="switchTab('demo')">Try a Demo</button>
+        <button class="tab" data-tab="llm" onclick="switchTab('llm')">Compare LLMs</button>
+        <button class="tab" data-tab="custom" onclick="switchTab('custom')">Custom Test</button>
+        <button class="tab" data-tab="history" onclick="switchTab('history')">History</button>
+      </nav>
 
-      <h3>Scoring Config</h3>
-      <div id="config-info" class="info-box">Loading...</div>
-    </section>
+      <!-- Tab: Demo -->
+      <section id="tab-demo" class="tab-content active">
+        <div class="tab-intro">
+          <p>Pick a scenario and run the evaluation. The system scores each agent's output based on <strong>keyword relevancy</strong> and <strong>historical reputation</strong>, then picks a winner.</p>
+        </div>
 
-    <!-- Section 2: Controls -->
-    <section id="controls-section">
-      <div class="controls-row">
-        <select id="scenario-select" onchange="onScenarioChange()">
-          <option value="">Loading scenarios...</option>
-        </select>
-        <button id="run-btn" onclick="runDemo()">Run Demo</button>
-        <button id="reset-btn" onclick="resetState()">Reset All</button>
-        <span id="status-msg"></span>
-      </div>
-    </section>
+        <div class="form-group">
+          <label for="scenario-select">Scenario</label>
+          <select id="scenario-select" onchange="onScenarioChange()">
+            <option value="">Loading...</option>
+          </select>
+        </div>
 
-    <!-- LLM Evaluation -->
-    <section id="llm-section">
-      <button class="section-toggle" onclick="toggleSection('llm')">+ LLM Evaluation (Real AI Agents)</button>
-      <div id="llm-form" class="collapsible-form" style="display:none;">
-        <div id="providers-info" class="info-box" style="margin-bottom:12px;">Loading providers...</div>
+        <div id="demo-task-preview" class="preview-card">
+          <div class="preview-label">Task</div>
+          <div id="demo-task-prompt" class="preview-text">Loading...</div>
+          <div class="preview-label" style="margin-top:12px">Expected Keywords</div>
+          <div id="demo-task-keywords" class="preview-keywords"></div>
+        </div>
 
-        <label for="llm-prompt">Task Prompt</label>
-        <textarea id="llm-prompt" rows="3" placeholder="Enter a task for AI agents to respond to..."></textarea>
+        <div id="demo-candidates-preview" class="preview-card">
+          <div class="preview-label">Agent Responses</div>
+          <div id="demo-candidates-list" class="candidates-preview"></div>
+        </div>
 
-        <label for="llm-keywords">Expected Keywords (comma-separated)</label>
-        <input type="text" id="llm-keywords" placeholder="keyword1, keyword2, keyword3">
+        <div class="action-row">
+          <button id="run-demo-btn" class="btn-primary" onclick="runDemo()">Run Evaluation</button>
+          <span id="demo-status" class="status-msg"></span>
+        </div>
 
-        <div class="custom-buttons">
+        <div id="demo-results" class="results-container" style="display:none;"></div>
+      </section>
+
+      <!-- Tab: Compare LLMs -->
+      <section id="tab-llm" class="tab-content">
+        <div class="tab-intro">
+          <p>Send a real task to multiple AI providers (OpenAI, Anthropic, Groq). Each generates a response, then the Trust Layer scores and ranks them.</p>
+          <div id="providers-status" class="providers-badge"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="llm-prompt">What should the agents respond to?</label>
+          <textarea id="llm-prompt" rows="3" placeholder="e.g. Explain the pros and cons of microservices vs monolithic architecture"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="llm-keywords">Keywords to look for <span class="label-hint">(comma-separated)</span></label>
+          <input type="text" id="llm-keywords" placeholder="e.g. scalability, deployment, complexity, latency">
+        </div>
+
+        <div class="action-row">
           <button class="btn-primary" onclick="runLLM()">Run LLM Evaluation</button>
+          <span id="llm-status" class="status-msg"></span>
         </div>
-      </div>
-    </section>
 
-    <!-- External Agent -->
-    <section id="external-section">
-      <button class="section-toggle" onclick="toggleSection('external')">+ External Agent Evaluation</button>
-      <div id="external-form" class="collapsible-form" style="display:none;">
-        <p class="form-description">Create a task, have agents submit outputs, then evaluate them.</p>
+        <div id="llm-results" class="results-container" style="display:none;"></div>
+      </section>
 
-        <h4>Step 1: Create Task</h4>
-        <label for="ext-prompt">Task Prompt</label>
-        <textarea id="ext-prompt" rows="2" placeholder="Describe the task..."></textarea>
-        <label for="ext-keywords">Expected Keywords (comma-separated)</label>
-        <input type="text" id="ext-keywords" placeholder="keyword1, keyword2">
-        <div class="custom-buttons">
-          <button class="btn-secondary" onclick="createTask()">Create Task</button>
+      <!-- Tab: Custom Test -->
+      <section id="tab-custom" class="tab-content">
+        <div class="tab-intro">
+          <p>Paste your own agent outputs and let the Trust Layer score them. Great for comparing responses you already have.</p>
         </div>
-        <div id="ext-task-info" style="display:none;" class="info-box"></div>
 
-        <h4>Step 2: Submit Agent Output</h4>
-        <div id="ext-submit-form" style="display:none;">
-          <label for="ext-agent-id">Agent ID</label>
-          <input type="text" id="ext-agent-id" placeholder="my_agent_1">
-          <label for="ext-agent-name">Agent Name (optional)</label>
-          <input type="text" id="ext-agent-name" placeholder="My Custom Agent">
-          <label for="ext-output">Output Text</label>
-          <textarea id="ext-output" rows="3" placeholder="Agent's response to the task..."></textarea>
-          <div class="custom-buttons">
-            <button class="btn-secondary" onclick="submitOutput()">Submit Output</button>
+        <div class="form-group">
+          <label for="custom-prompt">Task description</label>
+          <textarea id="custom-prompt" rows="3" placeholder="Describe what the agents were asked to do..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="custom-keywords">Keywords to look for <span class="label-hint">(comma-separated)</span></label>
+          <input type="text" id="custom-keywords" placeholder="e.g. accuracy, efficiency, security">
+        </div>
+
+        <div class="form-group">
+          <label>Agent outputs</label>
+          <div id="candidates-list">
+            <div class="candidate-input">
+              <input type="text" placeholder="Agent name (e.g. GPT-4)" class="cand-agent-id">
+              <textarea rows="2" placeholder="Paste the agent's response here..." class="cand-output"></textarea>
+            </div>
+            <div class="candidate-input">
+              <input type="text" placeholder="Agent name (e.g. Claude)" class="cand-agent-id">
+              <textarea rows="2" placeholder="Paste the agent's response here..." class="cand-output"></textarea>
+            </div>
           </div>
-          <div id="ext-submissions-info" class="info-box" style="display:none;"></div>
+          <button class="btn-ghost" onclick="addCandidate()">+ Add another agent</button>
         </div>
 
-        <h4>Step 3: Evaluate</h4>
-        <div id="ext-evaluate-form" style="display:none;">
-          <div class="custom-buttons">
-            <button class="btn-primary" onclick="evaluateTask()">Evaluate Submissions</button>
-          </div>
+        <div class="action-row">
+          <button class="btn-primary" onclick="runCustom()">Run Evaluation</button>
+          <span id="custom-status" class="status-msg"></span>
         </div>
+
+        <div id="custom-results" class="results-container" style="display:none;"></div>
+      </section>
+
+      <!-- Tab: History -->
+      <section id="tab-history" class="tab-content">
+        <div class="tab-intro">
+          <p>Every evaluation is recorded. See how agent reputations have changed over time.</p>
+        </div>
+        <div id="history-list">
+          <p class="empty-state">Loading history...</p>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Right: Leaderboard Sidebar -->
+    <aside class="sidebar">
+      <div class="leaderboard">
+        <div class="leaderboard-header">
+          <h2>Agent Leaderboard</h2>
+          <button class="btn-ghost-small" onclick="resetState()" title="Reset all reputations">Reset</button>
+        </div>
+        <div id="leaderboard-body">
+          <p class="empty-state">Loading...</p>
+        </div>
+        <div class="scoring-note" id="scoring-note"></div>
       </div>
-    </section>
+    </aside>
 
-    <!-- Batch Evaluation -->
-    <section id="batch-section">
-      <button class="section-toggle" onclick="toggleSection('batch')">+ Batch Evaluation</button>
-      <div id="batch-form" class="collapsible-form" style="display:none;">
-        <label for="batch-mode">Mode</label>
-        <select id="batch-mode" onchange="onBatchModeChange()">
-          <option value="scenarios">All Scenarios (4 tasks)</option>
-          <option value="repeat">Repeat Scenario</option>
-        </select>
-
-        <div id="batch-options"></div>
-
-        <div class="custom-buttons">
-          <button class="btn-primary" onclick="runBatch()">Run Batch</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Custom Input -->
-    <section id="custom-section">
-      <button class="section-toggle" onclick="toggleSection('custom')">+ Custom Input</button>
-      <div id="custom-form" class="collapsible-form" style="display:none;">
-        <label for="custom-prompt">Task Prompt</label>
-        <textarea id="custom-prompt" rows="3" placeholder="Describe the task for agents to respond to..."></textarea>
-
-        <label for="custom-keywords">Expected Keywords (comma-separated)</label>
-        <input type="text" id="custom-keywords" placeholder="keyword1, keyword2, keyword3">
-
-        <h4>Candidate Outputs</h4>
-        <div id="candidates-list">
-          <div class="candidate-input">
-            <input type="text" placeholder="Agent ID (e.g. agent_alpha)" class="cand-agent-id">
-            <textarea rows="2" placeholder="Agent output text..." class="cand-output"></textarea>
-          </div>
-          <div class="candidate-input">
-            <input type="text" placeholder="Agent ID (e.g. agent_beta)" class="cand-agent-id">
-            <textarea rows="2" placeholder="Agent output text..." class="cand-output"></textarea>
-          </div>
-        </div>
-        <div class="custom-buttons">
-          <button class="btn-secondary" onclick="addCandidate()">+ Add Candidate</button>
-          <button class="btn-primary" onclick="runCustom()">Run Custom Evaluation</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Results (hidden until run) -->
-    <section id="results-section" style="display:none;">
-      <h2>Evaluation Results</h2>
-
-      <div id="winner-box" class="winner-box"></div>
-
-      <div id="feedback-section" style="display:none;">
-        <div class="feedback-row">
-          <span>Override outcome:</span>
-          <button class="feedback-accept" onclick="submitFeedback(true)">Accept</button>
-          <button class="feedback-reject" onclick="submitFeedback(false)">Reject</button>
-          <span id="feedback-status"></span>
-        </div>
-      </div>
-
-      <div id="candidates-output-section" style="display:none;">
-        <h3>Agent Outputs</h3>
-        <div id="candidates-output" class="info-box"></div>
-      </div>
-
-      <h3>Ranking</h3>
-      <table id="ranking-table">
-        <thead>
-          <tr>
-            <th>Rank</th>
-            <th>Agent ID</th>
-            <th>Relevancy</th>
-            <th>Trust Score</th>
-            <th>Success Rate</th>
-          </tr>
-        </thead>
-        <tbody id="ranking-body"></tbody>
-      </table>
-
-      <h3>Reputation Update</h3>
-      <div id="reputation-diff" class="info-box"></div>
-
-      <h3>Structured Logs</h3>
-      <pre id="logs-output"></pre>
-    </section>
-
-    <!-- Batch Results (hidden until batch run) -->
-    <section id="batch-results-section" style="display:none;">
-      <h2>Batch Results</h2>
-      <div id="batch-summary" class="info-box"></div>
-
-      <h3>Aggregate Stats</h3>
-      <table id="batch-stats-table">
-        <thead>
-          <tr><th>Agent ID</th><th>Wins</th><th>Avg Score</th></tr>
-        </thead>
-        <tbody id="batch-stats-body"></tbody>
-      </table>
-
-      <h3>Per-Run Results</h3>
-      <div id="batch-runs-list"></div>
-
-      <h3>Reputation Timeline</h3>
-      <div id="reputation-timeline" class="info-box"></div>
-    </section>
-
-    <!-- Run History -->
-    <section id="history-section">
-      <h2>Run History</h2>
-      <button class="btn-secondary" onclick="loadHistory()">Refresh History</button>
-      <div id="history-list"></div>
-    </section>
-  </main>
+  </div>
 
   <footer>
-    <p>Trust Layer MVP &mdash; Real AI Evaluation Engine</p>
+    <p>Trust Layer MVP — MIT MAS.664 AI Studio</p>
   </footer>
 
   <script src="/app.js"></script>
