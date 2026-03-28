@@ -125,6 +125,15 @@ select { cursor: pointer; }
 }
 .metric-desc { color: #8b949e; line-height: 1.4; }
 
+/* === Keywords Toggle === */
+.keywords-toggle {
+  background: none; border: none; color: #58a6ff;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  padding: 0; margin-bottom: 8px;
+  transition: color 0.15s;
+}
+.keywords-toggle:hover { color: #79c0ff; }
+
 /* === Preview Cards === */
 .preview-card {
   background: #161b22; border: 1px solid #21262d; border-radius: 8px;

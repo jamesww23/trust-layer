@@ -44,31 +44,26 @@ async function loadState() {
         }
       });
     }
-    // Add any default agents not already present
     DEFAULT_AGENTS.forEach(a => {
       if (!knownAgents.find(k => k.id === a.id)) {
         knownAgents.push(a);
       }
     });
 
-    // Populate existing agent dropdowns
-    document.querySelectorAll(".cand-agent-select").forEach(populateAgentDropdown);
+    renderProviders();
   } catch (err) {
     setStatus("demo", "Error loading: " + err.message);
-    // Still populate dropdowns with defaults
     knownAgents = [...DEFAULT_AGENTS];
-    document.querySelectorAll(".cand-agent-select").forEach(populateAgentDropdown);
   }
 }
 
-// --- Agent Dropdown ---
-function populateAgentDropdown(select) {
-  const current = select.value;
-  select.innerHTML = '<option value="">Select an agent...</option>' +
-    knownAgents.map(a =>
-      `<option value="${esc(a.id)}">${esc(a.name)}</option>`
-    ).join("");
-  if (current) select.value = current;
+// --- Provider Status ---
+function renderProviders() {
+  const el = document.getElementById("providers-status");
+  if (!el) return;
+  el.innerHTML = knownAgents.map(a =>
+    `<span class="provider-tag available">${esc(a.name)}</span>`
+  ).join("");
 }
 
 // --- Leaderboard ---
@@ -166,60 +161,47 @@ async function runDemo() {
   }
 }
 
-// --- Custom Evaluation ---
-async function runCustom() {
-  setStatus("evaluate", "Running evaluation...");
+// --- LLM Evaluation (auto-generate) ---
+async function runLLMEval() {
+  const btn = document.getElementById("eval-run-btn");
+  btn.disabled = true;
+  setStatus("evaluate", "Sending to AI agents... this may take a few seconds.");
   try {
     const prompt = document.getElementById("eval-prompt").value.trim();
-    if (!prompt) { setStatus("evaluate", "Enter a task description."); return; }
+    if (!prompt) { setStatus("evaluate", "Enter a task prompt."); btn.disabled = false; return; }
+
     const keywordsRaw = document.getElementById("eval-keywords").value.trim();
     const keywords = keywordsRaw ? keywordsRaw.split(",").map(k => k.trim()).filter(Boolean) : [];
 
-    const blocks = document.querySelectorAll(".candidate-input");
-    const candidates = [];
-    for (const block of blocks) {
-      const agentId = block.querySelector(".cand-agent-select").value;
-      const outputText = block.querySelector(".cand-output").value.trim();
-      if (!agentId || !outputText) { setStatus("evaluate", "Select an agent and paste output for each entry."); return; }
-      candidates.push({ agent_id: agentId, output_text: outputText });
-    }
-    if (candidates.length < 2) { setStatus("evaluate", "At least 2 agents required."); return; }
-    const ids = candidates.map(c => c.agent_id);
-    if (new Set(ids).size !== ids.length) { setStatus("evaluate", "Each agent must be different."); return; }
-
-    const res = await fetch(API_BASE + "/api/run-custom", {
+    const res = await fetch(API_BASE + "/api/run-llm", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ task: { prompt, expected_keywords: keywords }, candidates }),
+      body: JSON.stringify({ prompt, expected_keywords: keywords }),
     });
-    if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Run failed"); }
+    if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Evaluation failed"); }
     const data = await res.json();
-    renderResultsInto("evaluate-results", data);
+    renderResultsInto("evaluate-results", data, true);
     renderLeaderboard(data.profiles_after, null);
     loadHistory();
     setStatus("evaluate", "");
   } catch (err) {
     setStatus("evaluate", "Error: " + err.message);
+  } finally {
+    btn.disabled = false;
   }
 }
 
-// --- Candidate Management ---
-function addCandidate() {
-  const list = document.getElementById("candidates-list");
-  const block = document.createElement("div");
-  block.className = "candidate-input";
-  block.innerHTML =
-    '<select class="cand-agent-select"><option value="">Select an agent...</option></select>' +
-    '<textarea rows="2" placeholder="Paste the agent\'s response here..." class="cand-output"></textarea>' +
-    '<button class="remove-cand-btn" onclick="removeCandidate(this)">&times;</button>';
-  list.appendChild(block);
-  populateAgentDropdown(block.querySelector(".cand-agent-select"));
-}
-
-function removeCandidate(btn) {
-  const list = document.getElementById("candidates-list");
-  if (list.children.length <= 2) { setStatus("evaluate", "At least 2 agents required."); return; }
-  btn.parentElement.remove();
+// --- Keywords Toggle ---
+function toggleKeywords() {
+  const section = document.getElementById("keywords-section");
+  const btn = document.querySelector(".keywords-toggle");
+  if (section.style.display === "none") {
+    section.style.display = "block";
+    btn.innerHTML = '− Hide keywords <span class="label-hint">(optional)</span>';
+  } else {
+    section.style.display = "none";
+    btn.innerHTML = '+ Add keywords <span class="label-hint">(optional — helps score relevancy)</span>';
+  }
 }
 
 // --- Results Renderer ---

@@ -63,40 +63,24 @@
       <!-- Tab: Evaluate Agents -->
       <section id="tab-evaluate" class="tab-content">
         <div class="tab-intro">
-          <p>Paste outputs from different AI agents and let the Trust Layer score and rank them. Pick which agent produced each response, enter the task details, and run the evaluation.</p>
+          <p>Enter a task and the system will automatically send it to multiple AI agents (GPT-4, Claude, LLaMA), collect their responses, then score and rank them.</p>
+          <div id="providers-status" class="providers-badge"></div>
         </div>
 
         <div class="form-group">
-          <label for="eval-prompt">Task prompt</label>
+          <label for="eval-prompt">What should the agents respond to?</label>
           <textarea id="eval-prompt" rows="3" placeholder="e.g. Explain the pros and cons of microservices vs monolithic architecture"></textarea>
         </div>
 
         <div class="form-group">
-          <label for="eval-keywords">Keywords to look for <span class="label-hint">(comma-separated)</span></label>
-          <input type="text" id="eval-keywords" placeholder="e.g. scalability, deployment, complexity, latency">
-        </div>
-
-        <div class="form-group">
-          <label>Agent outputs</label>
-          <div id="candidates-list">
-            <div class="candidate-input">
-              <select class="cand-agent-select">
-                <option value="">Select an agent...</option>
-              </select>
-              <textarea rows="2" placeholder="Paste the agent's response here..." class="cand-output"></textarea>
-            </div>
-            <div class="candidate-input">
-              <select class="cand-agent-select">
-                <option value="">Select an agent...</option>
-              </select>
-              <textarea rows="2" placeholder="Paste the agent's response here..." class="cand-output"></textarea>
-            </div>
+          <button class="keywords-toggle" onclick="toggleKeywords()">+ Add keywords <span class="label-hint">(optional — helps score relevancy)</span></button>
+          <div id="keywords-section" style="display:none;">
+            <input type="text" id="eval-keywords" placeholder="e.g. scalability, deployment, complexity, latency">
           </div>
-          <button class="btn-ghost" onclick="addCandidate()">+ Add another agent</button>
         </div>
 
         <div class="action-row">
-          <button class="btn-primary" onclick="runCustom()">Run Evaluation</button>
+          <button id="eval-run-btn" class="btn-primary" onclick="runLLMEval()">Evaluate Agents</button>
           <span id="evaluate-status" class="status-msg"></span>
         </div>
 
