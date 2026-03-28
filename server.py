@@ -36,6 +36,9 @@ class DevHandler(SimpleHTTPRequestHandler):
             if min_trust:
                 min_trust = float(min_trust)
             self._api_discover(keyword, min_trust)
+        elif parsed.path == "/api/tasks":
+            params = parse_qs(parsed.query)
+            self._api_tasks(params)
         else:
             super().do_GET()
 
@@ -54,6 +57,10 @@ class DevHandler(SimpleHTTPRequestHandler):
             self._api_reset()
         elif parsed.path == "/api/register-agent":
             self._api_register_agent(body)
+        elif parsed.path == "/api/delegate-task":
+            self._api_delegate_task(body)
+        elif parsed.path == "/api/submit-result":
+            self._api_submit_result(body)
         else:
             self._json_error(404, "Not found")
 
@@ -126,6 +133,73 @@ class DevHandler(SimpleHTTPRequestHandler):
             self._json_response({"status": "registered", "agent": agent.to_dict()})
         except ValueError as e:
             self._json_error(400, str(e))
+
+    def _api_delegate_task(self, body):
+        import uuid
+        from core.models import Task
+        requester_id = body.get("requester_id")
+        provider_id = body.get("provider_id")
+        description = body.get("description")
+        if not requester_id:
+            self._json_error(400, "requester_id is required"); return
+        if not provider_id:
+            self._json_error(400, "provider_id is required"); return
+        if not description:
+            self._json_error(400, "description is required"); return
+        requester = store.get(requester_id)
+        if not requester:
+            self._json_error(404, f"Requester agent '{requester_id}' not found"); return
+        provider = store.get(provider_id)
+        if not provider:
+            self._json_error(404, f"Provider agent '{provider_id}' not found"); return
+        task_id = "task_" + uuid.uuid4().hex[:12]
+        task = Task(task_id=task_id, requester_id=requester_id,
+                    provider_id=provider_id, description=description)
+        store.save_task(task)
+        self._json_response({
+            "status": "task_delegated",
+            "task": task.to_dict(),
+            "message": f"Task sent to {provider.agent_name}. They can see it at GET /api/tasks?agent_id={provider_id}",
+        }, 201)
+
+    def _api_tasks(self, params):
+        agent_id = params.get("agent_id", [None])[0]
+        status_filter = params.get("status", [None])[0]
+        role = params.get("role", ["provider"])[0]
+        if not agent_id:
+            self._json_error(400, "agent_id query parameter is required"); return
+        agent = store.get(agent_id)
+        if not agent:
+            self._json_error(404, f"Agent '{agent_id}' not found"); return
+        if role == "requester":
+            tasks = store.get_tasks_by_requester(agent_id)
+        else:
+            tasks = store.get_tasks_for_agent(agent_id, status=status_filter)
+        self._json_response({
+            "agent_id": agent_id, "role": role,
+            "tasks": [t.to_dict() for t in tasks], "count": len(tasks),
+        })
+
+    def _api_submit_result(self, body):
+        task_id = body.get("task_id")
+        result = body.get("result")
+        if not task_id:
+            self._json_error(400, "task_id is required"); return
+        if not result:
+            self._json_error(400, "result is required"); return
+        task = store.get_task(task_id)
+        if not task:
+            self._json_error(404, f"Task '{task_id}' not found"); return
+        if task.status == "completed":
+            self._json_error(400, "Task already completed"); return
+        task.status = "completed"
+        task.result = result
+        store.save_task(task)
+        self._json_response({
+            "status": "result_submitted",
+            "task": task.to_dict(),
+            "message": f"Result submitted. The requester ({task.requester_id}) can now rate your work at POST /api/submit-feedback",
+        })
 
     # --- Helpers ---
 

@@ -10,7 +10,7 @@ import os
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 
-from core.models import Agent
+from core.models import Agent, Task
 
 
 class AgentStore(ABC):
@@ -59,6 +59,7 @@ class MemoryStore(AgentStore):
 
     def __init__(self, initial: dict = None):
         self._agents: dict = {}
+        self._tasks: dict = {}  # task_id -> Task
         if initial:
             for agent_id, agent in initial.items():
                 self._agents[agent_id] = agent
@@ -93,9 +94,36 @@ class MemoryStore(AgentStore):
 
     def reset(self) -> None:
         self._agents.clear()
+        self._tasks.clear()
 
     def is_empty(self) -> bool:
         return len(self._agents) == 0
+
+    # --- Task methods ---
+
+    def save_task(self, task: Task) -> None:
+        task.updated_at = datetime.now(timezone.utc).isoformat()
+        self._tasks[task.task_id] = task
+
+    def get_task(self, task_id: str) -> Task:
+        return self._tasks.get(task_id)
+
+    def get_tasks_for_agent(self, agent_id: str, status: str = None) -> list:
+        results = []
+        for task in self._tasks.values():
+            if task.provider_id == agent_id:
+                if status is None or task.status == status:
+                    results.append(task)
+        results.sort(key=lambda t: t.created_at, reverse=True)
+        return results
+
+    def get_tasks_by_requester(self, agent_id: str) -> list:
+        results = []
+        for task in self._tasks.values():
+            if task.requester_id == agent_id:
+                results.append(task)
+        results.sort(key=lambda t: t.created_at, reverse=True)
+        return results
 
 
 class RedisStore(AgentStore):
@@ -162,10 +190,56 @@ class RedisStore(AgentStore):
         return [agent for agent, _ in scored]
 
     def reset(self) -> None:
-        keys = self._redis.keys(f"{self.KEY_PREFIX}*")
-        for key in keys:
-            self._redis.delete(key)
+        for prefix in [self.KEY_PREFIX, self.TASK_PREFIX]:
+            keys = self._redis.keys(f"{prefix}*")
+            for key in keys:
+                self._redis.delete(key)
 
     def is_empty(self) -> bool:
         keys = self._redis.keys(f"{self.KEY_PREFIX}*")
         return len(keys) == 0
+
+    # --- Task methods ---
+
+    TASK_PREFIX = "task:"
+
+    def _task_key(self, task_id: str) -> str:
+        return f"{self.TASK_PREFIX}{task_id}"
+
+    def save_task(self, task: Task) -> None:
+        task.updated_at = datetime.now(timezone.utc).isoformat()
+        self._redis.set(self._task_key(task.task_id), json.dumps(task.to_dict()))
+
+    def get_task(self, task_id: str) -> Task:
+        raw = self._redis.get(self._task_key(task_id))
+        if raw is None:
+            return None
+        data = raw if isinstance(raw, dict) else json.loads(raw)
+        return Task.from_dict(data)
+
+    def get_tasks_for_agent(self, agent_id: str, status: str = None) -> list:
+        keys = self._redis.keys(f"{self.TASK_PREFIX}*")
+        results = []
+        for key in keys:
+            raw = self._redis.get(key)
+            if raw is not None:
+                data = raw if isinstance(raw, dict) else json.loads(raw)
+                task = Task.from_dict(data)
+                if task.provider_id == agent_id:
+                    if status is None or task.status == status:
+                        results.append(task)
+        results.sort(key=lambda t: t.created_at, reverse=True)
+        return results
+
+    def get_tasks_by_requester(self, agent_id: str) -> list:
+        keys = self._redis.keys(f"{self.TASK_PREFIX}*")
+        results = []
+        for key in keys:
+            raw = self._redis.get(key)
+            if raw is not None:
+                data = raw if isinstance(raw, dict) else json.loads(raw)
+                task = Task.from_dict(data)
+                if task.requester_id == agent_id:
+                    results.append(task)
+        results.sort(key=lambda t: t.created_at, reverse=True)
+        return results

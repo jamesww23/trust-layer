@@ -16,6 +16,9 @@
     { "src": "/api/discover", "dest": "/api/discover.py" },
     { "src": "/api/run-simulation", "dest": "/api/run_simulation.py" },
     { "src": "/api/submit-feedback", "dest": "/api/submit_feedback.py" },
+    { "src": "/api/delegate-task", "dest": "/api/delegate_task.py" },
+    { "src": "/api/tasks", "dest": "/api/tasks.py" },
+    { "src": "/api/submit-result", "dest": "/api/submit_result.py" },
     { "src": "/api/reset", "dest": "/api/reset.py" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]
