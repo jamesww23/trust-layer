@@ -108,7 +108,16 @@ function renderRankings(agents) {
 function copyPrompt() {
   const text = document.getElementById("reg-prompt").textContent;
   navigator.clipboard.writeText(text).then(() => {
-    const btn = document.querySelector(".btn-copy");
+    const btn = document.getElementById("prompt-box").querySelector(".btn-copy");
+    btn.textContent = "Copied!";
+    setTimeout(() => { btn.textContent = "Copy prompt"; }, 2000);
+  });
+}
+
+function copyApiPrompt() {
+  const text = document.getElementById("api-prompt").textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById("api-prompt").closest(".prompt-box").querySelector(".btn-copy");
     btn.textContent = "Copied!";
     setTimeout(() => { btn.textContent = "Copy prompt"; }, 2000);
   });
