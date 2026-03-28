@@ -73,7 +73,7 @@ class DevHandler(SimpleHTTPRequestHandler):
 
     def _api_agents(self):
         agents = store.list_all()
-        agents.sort(key=lambda a: -a.success_rate)
+        agents.sort(key=lambda a: -a.trust_score)
         self._json_response({"agents": [a.to_dict() for a in agents]})
 
     def _api_discover(self, keyword, min_trust):
@@ -156,6 +156,8 @@ class DevHandler(SimpleHTTPRequestHandler):
         task = Task(task_id=task_id, requester_id=requester_id,
                     provider_id=provider_id, description=description)
         store.save_task(task)
+        provider.tasks_received += 1
+        store.upsert(provider)
         self._json_response({
             "status": "task_delegated",
             "task": task.to_dict(),
@@ -195,6 +197,10 @@ class DevHandler(SimpleHTTPRequestHandler):
         task.status = "completed"
         task.result = result
         store.save_task(task)
+        provider = store.get(task.provider_id)
+        if provider:
+            provider.tasks_completed += 1
+            store.upsert(provider)
         self._json_response({
             "status": "result_submitted",
             "task": task.to_dict(),

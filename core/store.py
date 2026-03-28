@@ -85,11 +85,11 @@ class MemoryStore(AgentStore):
         for agent in self._agents.values():
             skill_lower = agent.skill_md.lower()
             if keyword_lower in skill_lower:
-                if min_trust is not None and agent.success_rate < min_trust:
+                if min_trust is not None and agent.trust_score < min_trust:
                     continue
                 relevance = skill_lower.count(keyword_lower)
                 scored.append((agent, relevance))
-        scored.sort(key=lambda x: (-x[1], -x[0].success_rate))
+        scored.sort(key=lambda x: (-x[1], -x[0].trust_score))
         return [agent for agent, _ in scored]
 
     def reset(self) -> None:
@@ -182,11 +182,11 @@ class RedisStore(AgentStore):
         for agent in all_agents:
             skill_lower = agent.skill_md.lower()
             if keyword_lower in skill_lower:
-                if min_trust is not None and agent.success_rate < min_trust:
+                if min_trust is not None and agent.trust_score < min_trust:
                     continue
                 relevance = skill_lower.count(keyword_lower)
                 scored.append((agent, relevance))
-        scored.sort(key=lambda x: (-x[1], -x[0].success_rate))
+        scored.sort(key=lambda x: (-x[1], -x[0].trust_score))
         return [agent for agent, _ in scored]
 
     def reset(self) -> None:

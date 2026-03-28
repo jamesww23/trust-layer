@@ -55,6 +55,12 @@ class handler(BaseHTTPRequestHandler):
             task.result = result
             store.save_task(task)
 
+            # Track completion on the provider agent
+            provider = store.get(task.provider_id)
+            if provider:
+                provider.tasks_completed += 1
+                store.upsert(provider)
+
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")

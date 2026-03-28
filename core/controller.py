@@ -53,9 +53,9 @@ def update_trust(agent: Agent, feedback_score: float) -> float:
 def determine_outcome(provider: Agent) -> bool:
     """Determine interaction outcome with probability influenced by trust.
 
-    prob = success_rate (clamped to [0.1, 0.9] to avoid extremes)
+    Uses composite trust_score (clamped to [0.1, 0.9] to avoid extremes).
     """
-    prob = max(0.1, min(0.9, provider.success_rate))
+    prob = max(0.1, min(0.9, provider.trust_score))
     return random.random() < prob
 
 
@@ -66,10 +66,10 @@ def compute_feedback_score(outcome: bool, provider: Agent) -> float:
     Adds slight randomness to simulate real requester judgment.
     """
     if outcome:
-        base = 0.7 + 0.2 * provider.success_rate
+        base = 0.7 + 0.2 * provider.trust_score
         noise = random.uniform(-0.1, 0.1)
     else:
-        base = 0.1 + 0.2 * provider.success_rate
+        base = 0.1 + 0.2 * provider.trust_score
         noise = random.uniform(-0.05, 0.1)
     return round(max(0.0, min(1.0, base + noise)), 2)
 
@@ -77,12 +77,15 @@ def compute_feedback_score(outcome: bool, provider: Agent) -> float:
 def apply_trust_gate(candidates: list, threshold: float) -> tuple:
     """Apply trust gate — filter out agents below threshold.
 
+    Uses the composite trust_score (not raw success_rate) so that
+    unproven agents with 0 tasks are also gated appropriately.
+
     Returns (passed, rejected) where each is a list of agents.
     """
     passed = []
     rejected = []
     for agent in candidates:
-        if agent.success_rate >= threshold:
+        if agent.trust_score >= threshold:
             passed.append(agent)
         else:
             rejected.append(agent)
@@ -121,8 +124,8 @@ def _find_providers(store: AgentStore, task_entry: dict, exclude_id: str) -> lis
         match_count = sum(1 for kw in task_entry["keywords"] if kw in skill_lower)
         if match_count > 0:
             scored.append((agent, match_count))
-    # Sort by match relevance, then by trust
-    scored.sort(key=lambda x: (-x[1], -x[0].success_rate))
+    # Sort by match relevance, then by trust score
+    scored.sort(key=lambda x: (-x[1], -x[0].trust_score))
     return [agent for agent, _ in scored]
 
 
@@ -198,14 +201,15 @@ def run_simulation(store: AgentStore, rounds: int = 5,
         provider = random.choice(top)
 
         # --- 4. OUTCOME ---
-        trust_before = provider.success_rate
+        trust_before = provider.trust_score
         outcome = determine_outcome(provider)
 
         # --- 5. FEEDBACK ---
         feedback_score = compute_feedback_score(outcome, provider)
 
         # --- 6. REGISTRY UPDATE (uses feedback, not raw outcome) ---
-        trust_after = update_trust(provider, feedback_score)
+        update_trust(provider, feedback_score)
+        trust_after = provider.trust_score
         store.upsert(provider)
 
         # Record full interaction trace
@@ -229,7 +233,7 @@ def run_simulation(store: AgentStore, rounds: int = 5,
 
     # Final state
     final_agents = [a.to_dict() for a in store.list_all()]
-    final_agents.sort(key=lambda a: -a["success_rate"])
+    final_agents.sort(key=lambda a: -a["trust_score"])
 
     return {
         "rounds": rounds,

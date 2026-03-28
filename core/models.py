@@ -6,9 +6,14 @@ from datetime import datetime, timezone
 class Agent:
     """An agent registered in the reputation layer."""
 
+    # Trust system constants
+    PRIOR_TRUST = 0.2       # unproven agent baseline
+    CONFIDENCE_RAMP = 10    # tasks needed for full confidence
+
     def __init__(self, agent_id: str, agent_name: str, skill_md: str,
                  success_rate: float = 0.5, total_runs: int = 0,
                  flagged: int = 0,
+                 tasks_received: int = 0, tasks_completed: int = 0,
                  created_at: str = None, updated_at: str = None):
         if not agent_id or not agent_id.strip():
             raise ValueError("agent_id cannot be empty")
@@ -19,12 +24,46 @@ class Agent:
         self.agent_id = agent_id
         self.agent_name = agent_name
         self.skill_md = skill_md
-        self.success_rate = success_rate
-        self.total_runs = total_runs
-        self.flagged = flagged  # times rejected by trust gate
+        self.success_rate = success_rate   # running average of feedback scores
+        self.total_runs = total_runs       # number of ratings received
+        self.flagged = flagged             # times rejected by trust gate
+        self.tasks_received = tasks_received
+        self.tasks_completed = tasks_completed
         now = datetime.now(timezone.utc).isoformat()
         self.created_at = created_at or now
         self.updated_at = updated_at or now
+
+    @property
+    def confidence(self) -> float:
+        """How much we trust the rating average (0-1). Ramps up with experience."""
+        return min(self.total_runs / self.CONFIDENCE_RAMP, 1.0)
+
+    @property
+    def completion_rate(self) -> float:
+        """Fraction of received tasks that were completed."""
+        if self.tasks_received == 0:
+            return 0.0
+        return self.tasks_completed / self.tasks_received
+
+    @property
+    def trust_score(self) -> float:
+        """Composite trust score factoring in rating, experience, and completion.
+
+        trust = prior * (1 - confidence) + rating_avg * confidence
+        Then boosted/penalized by completion rate if they have tasks.
+
+        - 0 ratings: trust = 0.2 (unproven)
+        - 5 ratings at 0.8 avg: trust ≈ 0.5
+        - 10+ ratings at 0.8 avg: trust = 0.8
+        """
+        base = self.PRIOR_TRUST * (1 - self.confidence) + self.success_rate * self.confidence
+
+        # Completion factor: penalize agents who don't deliver
+        if self.tasks_received >= 3:
+            completion_factor = 0.8 + 0.2 * self.completion_rate  # 0.8 to 1.0
+            base *= completion_factor
+
+        return round(max(0.0, min(1.0, base)), 4)
 
     def to_dict(self) -> dict:
         return {
@@ -32,8 +71,13 @@ class Agent:
             "agent_name": self.agent_name,
             "skill_md": self.skill_md,
             "success_rate": self.success_rate,
+            "trust_score": self.trust_score,
             "total_runs": self.total_runs,
             "flagged": self.flagged,
+            "tasks_received": self.tasks_received,
+            "tasks_completed": self.tasks_completed,
+            "completion_rate": round(self.completion_rate, 4),
+            "confidence": round(self.confidence, 4),
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
@@ -47,6 +91,8 @@ class Agent:
             success_rate=data.get("success_rate", 0.5),
             total_runs=data.get("total_runs", 0),
             flagged=data.get("flagged", 0),
+            tasks_received=data.get("tasks_received", 0),
+            tasks_completed=data.get("tasks_completed", 0),
             created_at=data.get("created_at"),
             updated_at=data.get("updated_at"),
         )

@@ -60,13 +60,15 @@ function renderAgentList(agents) {
             <span class="agent-id">${esc(a.agent_id)}</span>
           </div>
           <div class="agent-trust-badge">
-            <span class="trust-value">${(a.success_rate * 100).toFixed(1)}%</span>
+            <span class="trust-value">${((a.trust_score != null ? a.trust_score : a.success_rate) * 100).toFixed(1)}%</span>
             <span class="trust-label">trust</span>
           </div>
         </div>
         <div class="agent-skill-md">${skillHtml}</div>
         <div class="agent-stats">
-          <span class="stat">Tasks completed: <strong>${a.total_runs}</strong></span>
+          <span class="stat">Ratings: <strong>${a.total_runs}</strong></span>
+          <span class="stat">Tasks: <strong>${a.tasks_completed || 0}/${a.tasks_received || 0}</strong></span>
+          <span class="stat">Confidence: <strong>${((a.confidence || 0) * 100).toFixed(0)}%</strong></span>
           ${flaggedHtml}
         </div>
       </div>
@@ -95,7 +97,8 @@ function renderRankings(agents) {
     el.innerHTML = '<p class="empty-state">No agents yet</p>';
     return;
   }
-  const sorted = [...agents].sort((a, b) => b.success_rate - a.success_rate || b.total_runs - a.total_runs);
+  const trustOf = a => a.trust_score != null ? a.trust_score : a.success_rate;
+  const sorted = [...agents].sort((a, b) => trustOf(b) - trustOf(a) || b.total_runs - a.total_runs);
   const maxRuns = Math.max(...sorted.map(a => a.total_runs), 1);
 
   el.innerHTML = sorted.map((a, i) => {
@@ -114,7 +117,7 @@ function renderRankings(agents) {
           </div>
           <span class="rank-pop">${a.total_runs} tasks ${flaggedTag}</span>
         </div>
-        <span class="rank-score${medal}">${(a.success_rate * 100).toFixed(1)}%</span>
+        <span class="rank-score${medal}">${((a.trust_score != null ? a.trust_score : a.success_rate) * 100).toFixed(1)}%</span>
       </div>
     `;
   }).join("");
@@ -215,7 +218,7 @@ async function discoverAgents() {
         <div class="discover-card">
           <div class="discover-header">
             <strong>${esc(a.agent_name || a.agent_id)}</strong>
-            <span class="discover-trust">${((a.trust_score || a.success_rate || 0.5) * 100).toFixed(1)}% trust</span>
+            <span class="discover-trust">${((a.trust_score != null ? a.trust_score : (a.success_rate || 0.5)) * 100).toFixed(1)}% trust</span>
           </div>
           <div class="discover-skill">${esc((a.skill_md || '').substring(0, 150))}${(a.skill_md || '').length > 150 ? '...' : ''}</div>
         </div>
@@ -240,7 +243,8 @@ function populateRateDropdown(agents) {
   for (const a of sorted) {
     const opt = document.createElement("option");
     opt.value = a.agent_id;
-    opt.textContent = a.agent_name + " (" + (a.success_rate * 100).toFixed(0) + "% trust)";
+    const ts = a.trust_score != null ? a.trust_score : a.success_rate;
+    opt.textContent = a.agent_name + " (" + (ts * 100).toFixed(0) + "% trust)";
     select.appendChild(opt);
   }
 }
@@ -265,7 +269,7 @@ async function submitRating(score) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Rating failed");
 
-    const newTrust = (data.agent.success_rate * 100).toFixed(1);
+    const newTrust = ((data.agent.trust_score != null ? data.agent.trust_score : data.agent.success_rate) * 100).toFixed(1);
     const label = score >= 0.8 ? "positive" : score <= 0.4 ? "negative" : "neutral";
     status.textContent = "Rated! " + data.agent.agent_name + " now has " + newTrust + "% trust.";
 
@@ -392,7 +396,7 @@ function renderSimResults(data) {
       <tr class="${i === 0 ? 'winner-row' : ''}">
         <td>${i + 1}</td>
         <td><strong>${esc(a.agent_name)}</strong> <span class="agent-id-small">${esc(a.agent_id)}</span></td>
-        <td><strong>${(a.success_rate * 100).toFixed(1)}%</strong></td>
+        <td><strong>${((a.trust_score != null ? a.trust_score : a.success_rate) * 100).toFixed(1)}%</strong></td>
         <td>${a.total_runs}</td>
         <td>${flaggedCell}</td>
       </tr>

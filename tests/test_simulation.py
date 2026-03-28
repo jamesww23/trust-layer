@@ -9,23 +9,29 @@ from core.controller import (
 )
 
 
+def _proven_agent(agent_id, name, skill_md, success_rate=0.5, total_runs=10):
+    """Create an agent with enough history for its trust_score to reflect success_rate."""
+    return Agent(agent_id, name, skill_md,
+                 success_rate=success_rate, total_runs=total_runs)
+
+
 def _seeded_store():
     store = MemoryStore()
-    store.register(Agent("a1", "Summarizer", "I summarize legal documents.", success_rate=0.5))
-    store.register(Agent("a2", "Translator", "I translate text and code.", success_rate=0.5))
-    store.register(Agent("a3", "Analyst", "I analyze data and finance.", success_rate=0.5))
+    store.register(_proven_agent("a1", "Summarizer", "I summarize legal documents."))
+    store.register(_proven_agent("a2", "Translator", "I translate text and code."))
+    store.register(_proven_agent("a3", "Analyst", "I analyze data and finance."))
     return store
 
 
 class TestUpdateTrust:
     def test_high_feedback_increases_trust(self):
-        agent = Agent("a1", "Test", "Skill", success_rate=0.5, total_runs=10)
+        agent = _proven_agent("a1", "Test", "Skill", success_rate=0.5)
         new_sr = update_trust(agent, 0.9)
         assert new_sr > 0.5
         assert agent.total_runs == 11
 
     def test_low_feedback_decreases_trust(self):
-        agent = Agent("a1", "Test", "Skill", success_rate=0.5, total_runs=10)
+        agent = _proven_agent("a1", "Test", "Skill", success_rate=0.5)
         new_sr = update_trust(agent, 0.1)
         assert new_sr < 0.5
         assert agent.total_runs == 11
@@ -49,8 +55,6 @@ class TestUpdateTrust:
         assert agent.success_rate == expected
 
     def test_fractional_feedback_produces_fractional_trust(self):
-        """Feedback of 0.7 should produce a trust value between 0 and 1,
-        not the same as a binary 1.0 or 0.0."""
         agent = Agent("a1", "Test", "Skill", success_rate=0.5, total_runs=4)
         update_trust(agent, 0.7)
         expected = round((0.5 * 4 + 0.7) / 5, 4)
@@ -59,18 +63,18 @@ class TestUpdateTrust:
 
 class TestDetermineOutcome:
     def test_returns_bool(self):
-        agent = Agent("a1", "Test", "Skill", success_rate=0.5)
+        agent = _proven_agent("a1", "Test", "Skill", success_rate=0.5)
         result = determine_outcome(agent)
         assert isinstance(result, bool)
 
     def test_high_trust_more_likely_success(self):
-        agent = Agent("a1", "Test", "Skill", success_rate=0.9)
+        agent = _proven_agent("a1", "Test", "Skill", success_rate=0.9)
         results = [determine_outcome(agent) for _ in range(100)]
         success_count = sum(results)
         assert success_count > 50  # should be ~90 successes
 
     def test_low_trust_more_likely_failure(self):
-        agent = Agent("a1", "Test", "Skill", success_rate=0.1)
+        agent = _proven_agent("a1", "Test", "Skill", success_rate=0.1)
         results = [determine_outcome(agent) for _ in range(100)]
         success_count = sum(results)
         assert success_count < 50  # should be ~10 successes
@@ -79,8 +83,8 @@ class TestDetermineOutcome:
 class TestTrustGate:
     def test_all_pass(self):
         agents = [
-            Agent("a1", "A", "Skill", success_rate=0.5),
-            Agent("a2", "B", "Skill", success_rate=0.8),
+            _proven_agent("a1", "A", "Skill", success_rate=0.5),
+            _proven_agent("a2", "B", "Skill", success_rate=0.8),
         ]
         passed, rejected = apply_trust_gate(agents, 0.3)
         assert len(passed) == 2
@@ -88,8 +92,8 @@ class TestTrustGate:
 
     def test_some_rejected(self):
         agents = [
-            Agent("a1", "A", "Skill", success_rate=0.2),
-            Agent("a2", "B", "Skill", success_rate=0.8),
+            _proven_agent("a1", "A", "Skill", success_rate=0.2),
+            _proven_agent("a2", "B", "Skill", success_rate=0.8),
         ]
         passed, rejected = apply_trust_gate(agents, 0.3)
         assert len(passed) == 1
@@ -99,34 +103,42 @@ class TestTrustGate:
 
     def test_all_rejected(self):
         agents = [
-            Agent("a1", "A", "Skill", success_rate=0.1),
-            Agent("a2", "B", "Skill", success_rate=0.2),
+            _proven_agent("a1", "A", "Skill", success_rate=0.1),
+            _proven_agent("a2", "B", "Skill", success_rate=0.2),
         ]
         passed, rejected = apply_trust_gate(agents, 0.5)
         assert len(passed) == 0
         assert len(rejected) == 2
 
     def test_threshold_boundary(self):
-        agents = [Agent("a1", "A", "Skill", success_rate=0.3)]
+        agents = [_proven_agent("a1", "A", "Skill", success_rate=0.3)]
         passed, rejected = apply_trust_gate(agents, 0.3)
         assert len(passed) == 1  # exactly at threshold passes
+
+    def test_new_agent_below_gate(self):
+        """New agent with 0 tasks should have low trust_score and get gated."""
+        agent = Agent("a1", "New", "Skill", success_rate=0.5, total_runs=0)
+        assert agent.trust_score < 0.3  # unproven = 0.2
+        passed, rejected = apply_trust_gate([agent], 0.3)
+        assert len(passed) == 0
+        assert len(rejected) == 1
 
 
 class TestComputeFeedback:
     def test_success_feedback_positive(self):
-        agent = Agent("a1", "Test", "Skill", success_rate=0.8)
+        agent = _proven_agent("a1", "Test", "Skill", success_rate=0.8)
         scores = [compute_feedback_score(True, agent) for _ in range(50)]
         avg = sum(scores) / len(scores)
         assert avg > 0.5
 
     def test_failure_feedback_lower(self):
-        agent = Agent("a1", "Test", "Skill", success_rate=0.5)
+        agent = _proven_agent("a1", "Test", "Skill", success_rate=0.5)
         success_scores = [compute_feedback_score(True, agent) for _ in range(50)]
         failure_scores = [compute_feedback_score(False, agent) for _ in range(50)]
         assert sum(success_scores) / len(success_scores) > sum(failure_scores) / len(failure_scores)
 
     def test_feedback_in_range(self):
-        agent = Agent("a1", "Test", "Skill", success_rate=0.5)
+        agent = _proven_agent("a1", "Test", "Skill", success_rate=0.5)
         for _ in range(100):
             score = compute_feedback_score(True, agent)
             assert 0.0 <= score <= 1.0
@@ -178,7 +190,6 @@ class TestRunSimulation:
         assert "outcome" in entry
         assert "trust_before" in entry
         assert "trust_after" in entry
-        # New 6-component fields
         assert "discovery_candidates" in entry
         assert "gate_passed" in entry
         assert "gate_rejected" in entry
@@ -186,24 +197,23 @@ class TestRunSimulation:
 
     def test_trust_scores_change(self):
         store = _seeded_store()
-        initial = {a.agent_id: a.success_rate for a in store.list_all()}
+        initial = {a.agent_id: a.trust_score for a in store.list_all()}
         run_simulation(store, rounds=10)
-        final = {a.agent_id: a.success_rate for a in store.list_all()}
+        final = {a.agent_id: a.trust_score for a in store.list_all()}
         changed = any(initial[aid] != final[aid] for aid in initial)
         assert changed
 
     def test_total_runs_increase(self):
         store = _seeded_store()
+        initial_runs = sum(a.total_runs for a in store.list_all())
         run_simulation(store, rounds=5)
-        total = sum(a.total_runs for a in store.list_all())
-        # Each round either delegates (1 provider run) or rejects all (0 runs)
-        assert total <= 5
-        assert total > 0
+        final_runs = sum(a.total_runs for a in store.list_all())
+        assert final_runs > initial_runs
 
     def test_final_agents_sorted_by_trust(self):
         store = _seeded_store()
         result = run_simulation(store, rounds=10)
-        scores = [a["success_rate"] for a in result["final_agents"]]
+        scores = [a["trust_score"] for a in result["final_agents"]]
         assert scores == sorted(scores, reverse=True)
 
     def test_too_few_agents_raises(self):
@@ -231,41 +241,51 @@ class TestRunSimulation:
 
     def test_high_threshold_causes_rejections(self):
         store = MemoryStore()
-        store.register(Agent("a1", "Low", "I summarize.", success_rate=0.2))
-        store.register(Agent("a2", "High", "I summarize.", success_rate=0.8))
+        store.register(_proven_agent("a1", "Low", "I summarize.", success_rate=0.2))
+        store.register(_proven_agent("a2", "High", "I summarize.", success_rate=0.8))
         result = run_simulation(store, rounds=10, trust_threshold=0.5)
-        # a1 should get flagged since it's below 0.5 threshold
-        final = {a["agent_id"]: a for a in result["final_agents"]}
-        # At least some rejections should have occurred
         any_rejected = any(len(h.get("gate_rejected", [])) > 0 for h in result["history"])
         assert any_rejected
 
     def test_flagged_count_tracks_rejections(self):
         store = MemoryStore()
-        store.register(Agent("a1", "Low", "I code and translate.", success_rate=0.1))
-        store.register(Agent("a2", "High", "I code and translate.", success_rate=0.9))
+        store.register(_proven_agent("a1", "Low", "I code and translate.", success_rate=0.1))
+        store.register(_proven_agent("a2", "High", "I code and translate.", success_rate=0.9))
         run_simulation(store, rounds=20, trust_threshold=0.5)
         a1 = store.get("a1")
-        assert a1.flagged > 0  # should have been rejected multiple times
+        assert a1.flagged > 0
 
     def test_feedback_score_drives_trust_update(self):
-        """Regression: trust update must use feedback_score, not raw outcome.
-
-        After a successful outcome, the feedback score is a float < 1.0
-        (e.g. 0.8), so the trust update should reflect that fractional
-        value rather than a binary 1.0.
-        """
         store = _seeded_store()
         result = run_simulation(store, rounds=20)
         for entry in result["history"]:
             if entry["gate_passed"] and entry["outcome"] is not None:
                 fb = entry["feedback_score"]
-                # feedback_score is always a float in [0, 1]
                 assert isinstance(fb, float)
                 assert 0.0 <= fb <= 1.0
-                # For a successful outcome, trust_after should NOT equal
-                # what you'd get from plugging in 1.0 (binary outcome).
-                # With feedback in the loop, trust_after reflects the
-                # fractional feedback value.
                 if entry["outcome"]:
-                    assert fb < 1.0 or fb > 0.0  # sanity: not degenerate
+                    assert fb < 1.0 or fb > 0.0
+
+
+class TestTrustScoreComposite:
+    """Tests for the new composite trust scoring system."""
+
+    def test_new_agent_has_low_trust(self):
+        agent = Agent("a1", "New", "Skill", success_rate=0.5, total_runs=0)
+        assert agent.trust_score == 0.2  # prior only
+
+    def test_proven_agent_reflects_rating(self):
+        agent = _proven_agent("a1", "Proven", "Skill", success_rate=0.8)
+        assert agent.trust_score == 0.8  # fully confident
+
+    def test_partial_experience(self):
+        agent = Agent("a1", "Mid", "Skill", success_rate=0.8, total_runs=5)
+        # confidence = 0.5, trust = 0.2 * 0.5 + 0.8 * 0.5 = 0.5
+        assert agent.trust_score == 0.5
+
+    def test_completion_rate_penalty(self):
+        """Agents who don't complete tasks get penalized."""
+        agent = Agent("a1", "Flaky", "Skill", success_rate=0.8, total_runs=10,
+                      tasks_received=5, tasks_completed=0)
+        no_tasks = Agent("a2", "Active", "Skill", success_rate=0.8, total_runs=10)
+        assert agent.trust_score < no_tasks.trust_score

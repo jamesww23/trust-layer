@@ -58,7 +58,7 @@ class handler(BaseHTTPRequestHandler):
                 self._error(404, f"Provider agent '{provider_id}' not found")
                 return
 
-            # Create the task
+            # Create the task and track on provider
             task_id = "task_" + uuid.uuid4().hex[:12]
             task = Task(
                 task_id=task_id,
@@ -67,6 +67,8 @@ class handler(BaseHTTPRequestHandler):
                 description=description,
             )
             store.save_task(task)
+            provider.tasks_received += 1
+            store.upsert(provider)
 
             self.send_response(201)
             self.send_header("Content-Type", "application/json")

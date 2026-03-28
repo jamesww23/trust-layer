@@ -21,8 +21,8 @@ class TestFeedbackDrivesTrustUpdate:
         get from a binary 1/0 update.  It should reflect the fractional
         feedback score instead."""
         store = MemoryStore()
-        store.register(Agent("a1", "A", "I summarize and translate.", success_rate=0.5))
-        store.register(Agent("a2", "B", "I summarize and translate.", success_rate=0.5))
+        store.register(Agent("a1", "A", "I summarize and translate.", success_rate=0.5, total_runs=10))
+        store.register(Agent("a2", "B", "I summarize and translate.", success_rate=0.5, total_runs=10))
         result = run_simulation(store, rounds=30)
 
         for entry in result["history"]:
@@ -98,11 +98,11 @@ class TestDiscoveryRelevanceOrdering:
         even if its trust score is lower."""
         store = MemoryStore()
         # a1: mentions "data" once, high trust
-        store.register(Agent("a1", "HighTrust", "I do data.", success_rate=0.9))
+        store.register(Agent("a1", "HighTrust", "I do data.", success_rate=0.9, total_runs=10))
         # a2: mentions "data" three times, lower trust
         store.register(Agent("a2", "MoreRelevant",
                              "I do data analysis, data science, and data viz.",
-                             success_rate=0.5))
+                             success_rate=0.5, total_runs=10))
         results = store.discover("data")
         assert len(results) == 2
         assert results[0].agent_id == "a2", "Higher relevance should rank first"
@@ -111,8 +111,8 @@ class TestDiscoveryRelevanceOrdering:
     def test_equal_relevance_falls_back_to_trust(self):
         """When relevance is equal, higher trust wins."""
         store = MemoryStore()
-        store.register(Agent("a1", "Low", "I analyze data.", success_rate=0.3))
-        store.register(Agent("a2", "High", "I analyze data.", success_rate=0.9))
+        store.register(Agent("a1", "Low", "I analyze data.", success_rate=0.3, total_runs=10))
+        store.register(Agent("a2", "High", "I analyze data.", success_rate=0.9, total_runs=10))
         results = store.discover("data")
         assert results[0].agent_id == "a2"
 
@@ -120,9 +120,9 @@ class TestDiscoveryRelevanceOrdering:
         """min_trust filter should still work with relevance sorting."""
         store = MemoryStore()
         store.register(Agent("a1", "Low",
-                             "data data data", success_rate=0.2))
+                             "data data data", success_rate=0.2, total_runs=10))
         store.register(Agent("a2", "High",
-                             "data", success_rate=0.8))
+                             "data", success_rate=0.8, total_runs=10))
         results = store.discover("data", min_trust=0.5)
         assert len(results) == 1
         assert results[0].agent_id == "a2"

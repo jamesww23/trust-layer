@@ -1,16 +1,23 @@
 """Scoring engine for Agentic Reputation Infrastructure Layer.
 
-trust_score = success_rate (MVP simplicity)
+Trust score is a composite of:
+- Rating average (success_rate) — quality of work
+- Confidence — how many tasks rated (experience)
+- Completion rate — tasks completed vs received (reliability)
+
+New agents start with low trust (20%) until they prove themselves.
 """
 
 
-def compute_trust_score(success_rate: float) -> float:
-    """Compute trust score from success rate.
+def compute_trust_score(agent) -> float:
+    """Compute composite trust score from agent state.
 
-    For MVP: trust_score = success_rate
-    Clamped to [0.0, 1.0], rounded to 4 decimals.
+    Uses the agent's trust_score property which combines:
+    - prior (0.2) weighted by inexperience
+    - rating average weighted by experience
+    - completion rate penalty if they don't deliver
     """
-    return round(max(0.0, min(1.0, success_rate)), 4)
+    return agent.trust_score
 
 
 def compute_popularity(total_runs: int, max_runs: int) -> float:

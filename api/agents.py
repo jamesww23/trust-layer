@@ -18,7 +18,7 @@ class handler(BaseHTTPRequestHandler):
             seed_store(store)
 
             agents = store.list_all()
-            agents.sort(key=lambda a: -a.success_rate)
+            agents.sort(key=lambda a: -a.trust_score)
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")

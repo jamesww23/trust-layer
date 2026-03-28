@@ -57,8 +57,8 @@ class TestDiscover:
 
     def test_discover_with_min_trust(self):
         store = MemoryStore()
-        a1 = Agent("a1", "Good", "I do things.", success_rate=0.8)
-        a2 = Agent("a2", "Bad", "I do things too.", success_rate=0.3)
+        a1 = Agent("a1", "Good", "I do things.", success_rate=0.8, total_runs=10)
+        a2 = Agent("a2", "Bad", "I do things too.", success_rate=0.3, total_runs=10)
         store.register(a1)
         store.register(a2)
         results = store.discover("things", min_trust=0.5)
@@ -73,8 +73,8 @@ class TestDiscover:
 
     def test_discover_sorted_by_trust(self):
         store = MemoryStore()
-        store.register(Agent("a1", "Low", "I analyze data.", success_rate=0.3))
-        store.register(Agent("a2", "High", "I analyze data.", success_rate=0.9))
+        store.register(Agent("a1", "Low", "I analyze data.", success_rate=0.3, total_runs=10))
+        store.register(Agent("a2", "High", "I analyze data.", success_rate=0.9, total_runs=10))
         results = store.discover("analyze")
         assert results[0].agent_id == "a2"
 
