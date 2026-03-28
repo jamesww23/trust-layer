@@ -56,11 +56,24 @@ class TrustController:
             self._log("INIT", f"Agent {c.agent_id}: success_rate={profile.success_rate}, "
                        f"total_runs={profile.total_runs}")
 
+        # --- JUDGE (LLM-as-judge for response quality) ---
+        from core.scoring import llm_judge_score
+        judge_scores = {}
+        for c in candidates:
+            score = llm_judge_score(task.prompt, c.output_text)
+            judge_scores[c.agent_id] = score
+            if score is not None:
+                self._log("JUDGE", f"Agent {c.agent_id}: quality={score}")
+            else:
+                self._log("JUDGE", f"Agent {c.agent_id}: judge unavailable, using keyword fallback")
+
         # --- SCORE ---
         scored = []
         for c in candidates:
             profile = profiles[c.agent_id]
-            relevancy = self.engine.compute_relevancy(c.output_text, task.expected_keywords)
+            relevancy = self.engine.compute_relevancy(
+                c.output_text, task.expected_keywords,
+                judge_score=judge_scores.get(c.agent_id))
             trust_score = self.engine.compute_trust_score(profile.success_rate, relevancy)
             scored.append({
                 "agent_id": c.agent_id,
@@ -68,6 +81,7 @@ class TrustController:
                 "trust_score": trust_score,
                 "success_rate": profile.success_rate,
                 "total_runs": profile.total_runs,
+                "llm_judge_score": judge_scores.get(c.agent_id),
                 "candidate": c,
             })
             self._log("SCORE", f"Agent {c.agent_id}: relevancy={relevancy}, "
@@ -123,14 +137,21 @@ class TrustController:
                 "trust_score": entry["trust_score"],
                 "relevancy": entry["relevancy"],
                 "success_rate": entry["success_rate"],
+                "llm_judge_score": entry.get("llm_judge_score"),
             }
             for entry in ranking
         ]
 
+        judge_used = any(judge_scores.get(c.agent_id) is not None for c in candidates)
+        judge_note = ""
+        if judge_used:
+            winner_judge = judge_scores.get(winner_entry["agent_id"])
+            judge_note = f" LLM judge quality={winner_judge}." if winner_judge is not None else ""
+
         explanation = (
             f"Winner: {winner_entry['agent_id']} with trust_score={winner_entry['trust_score']}. "
             f"Relevancy={winner_entry['relevancy']}, "
-            f"success_rate={winner_entry['success_rate']}. "
+            f"success_rate={winner_entry['success_rate']}.{judge_note} "
             f"Outcome={'accepted' if actual_outcome else 'rejected'} "
             f"(structural validity)."
         )

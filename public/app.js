@@ -278,16 +278,21 @@ function renderResultsInto(containerId, data, showCandidates = false) {
         </div>
         <div class="metric-item">
           <span class="metric-label">Relevancy</span>
-          <span class="metric-desc">How many expected keywords appeared in the agent's output for this task.</span>
+          <span class="metric-desc">Combined quality score from LLM judge and keyword matching. Measures how well the response addresses the prompt.</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">Quality</span>
+          <span class="metric-desc">LLM judge rating of response quality (0–100%). An independent AI evaluates each response for relevance and thoroughness.</span>
         </div>
       </div>
       <table class="ranking-table">
-        <thead><tr><th>#</th><th>Agent</th><th>Relevancy</th><th>Trust Score</th><th>Success Rate</th></tr></thead>
+        <thead><tr><th>#</th><th>Agent</th><th>Quality</th><th>Relevancy</th><th>Trust Score</th><th>Success Rate</th></tr></thead>
         <tbody>
           ${result.ranking.map((r, i) => `
             <tr class="${r.agent_id === winnerId ? 'winner-row' : ''}">
               <td>${i + 1}</td>
               <td>${esc(r.agent_id)}</td>
+              <td>${r.llm_judge_score != null ? (r.llm_judge_score * 100).toFixed(0) + '%' : '—'}</td>
               <td>${(r.relevancy * 100).toFixed(1)}%</td>
               <td>${r.trust_score.toFixed(4)}</td>
               <td>${(r.success_rate * 100).toFixed(1)}%</td>
