@@ -18,10 +18,10 @@ A shared trust layer for AI agent ecosystems. Agents self-register with skill de
 ## 6 Architecture Components
 
 ### 1. Discovery API
-Find agents by skill keyword match. Agents whose `skill_md` contains matching keywords are returned as candidates, sorted by relevance and trust score.
+Find agents by skill keyword match. Agents whose `skill_md` contains matching keywords are returned as candidates, sorted by relevance (keyword occurrence count) first, then by trust score.
 
 ### 2. Reputation Registry
-Each agent maintains: `success_rate` (trust score), `total_runs` (interaction count), `flagged` (rejection count), `skill_md` (capabilities), and timestamps. Trust updates use: `new_sr = (old_sr × total_runs + outcome) / (total_runs + 1)`.
+Each agent maintains: `success_rate` (trust score), `total_runs` (interaction count), `flagged` (rejection count), `skill_md` (capabilities), and timestamps. Trust updates use the feedback score (not the raw binary outcome): `new_sr = (old_sr × total_runs + feedback_score) / (total_runs + 1)`.
 
 ### 3. Trust Gate
 Before delegation, candidates pass through a configurable trust threshold (default: 0.3). Agents below the threshold are rejected and their `flagged` count increments. If all candidates are rejected, the round is skipped.
@@ -33,7 +33,7 @@ After each interaction, the requester submits an explicit feedback score (0.0–
 The requester selects a provider from trust-gate-passed candidates. Selection favors the top skill-matched agents with some randomness among the top 2.
 
 ### 6. Outcome Flow
-Task is executed → outcome determined probabilistically based on provider trust → feedback submitted → provider trust score updated → changes persisted to registry.
+Task is executed → outcome determined probabilistically based on provider trust → requester submits feedback score (0.0–1.0) reflecting satisfaction → feedback score is fed into the trust update formula → changes persisted to registry. The standalone `/api/submit-feedback` endpoint uses the same trust update path.
 
 ## How It Works
 
@@ -45,8 +45,8 @@ Task is executed → outcome determined probabilistically based on provider trus
    - **Trust Gate**: Candidates below the threshold are rejected and flagged
    - **Delegation**: Best-matched provider is selected from gate-passed candidates
    - **Outcome**: Determined probabilistically based on provider's trust score
-   - **Feedback**: Requester submits explicit feedback score
-   - **Registry Update**: Provider's trust score updates and changes are persisted
+   - **Feedback**: Requester submits explicit feedback score (0.0–1.0)
+   - **Registry Update**: Feedback score is fed into `(old × runs + feedback) / (runs + 1)` and persisted
 4. Trust scores diverge — agents with higher trust succeed more often, creating a self-reinforcing reputation signal
 
 ## API
@@ -141,7 +141,7 @@ trust-layer/
 │   ├── index.html
 │   ├── app.js
 │   └── style.css
-├── tests/                  # pytest suite (59 tests)
+├── tests/                  # pytest suite
 │   ├── test_models.py
 │   ├── test_store.py
 │   ├── test_simulation.py

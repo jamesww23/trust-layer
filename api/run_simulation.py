@@ -25,10 +25,12 @@ class handler(BaseHTTPRequestHandler):
                 try:
                     body = json.loads(raw.decode())
                 except (json.JSONDecodeError, UnicodeDecodeError):
-                    body = {}
+                    self._error(400, "Malformed JSON in request body")
+                    return
 
             if not isinstance(body, dict):
-                body = {}
+                self._error(400, "Request body must be a JSON object")
+                return
 
             rounds_raw = body.get("rounds", 5)
             if not isinstance(rounds_raw, int) or isinstance(rounds_raw, bool):

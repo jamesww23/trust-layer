@@ -39,7 +39,8 @@ class AgentStore(ABC):
     @abstractmethod
     def discover(self, keyword: str, min_trust: float = None) -> list:
         """Find agents whose skill_md contains keyword (case-insensitive).
-        Optionally filter by minimum trust score (success_rate)."""
+        Results are sorted by keyword relevance (occurrence count) first,
+        then by trust score.  Optionally filter by minimum trust score."""
         ...
 
     @abstractmethod
@@ -79,13 +80,16 @@ class MemoryStore(AgentStore):
 
     def discover(self, keyword: str, min_trust: float = None) -> list:
         keyword_lower = keyword.lower()
-        results = []
+        scored = []
         for agent in self._agents.values():
-            if keyword_lower in agent.skill_md.lower():
+            skill_lower = agent.skill_md.lower()
+            if keyword_lower in skill_lower:
                 if min_trust is not None and agent.success_rate < min_trust:
                     continue
-                results.append(agent)
-        return sorted(results, key=lambda a: -a.success_rate)
+                relevance = skill_lower.count(keyword_lower)
+                scored.append((agent, relevance))
+        scored.sort(key=lambda x: (-x[1], -x[0].success_rate))
+        return [agent for agent, _ in scored]
 
     def reset(self) -> None:
         self._agents.clear()
@@ -146,13 +150,16 @@ class RedisStore(AgentStore):
     def discover(self, keyword: str, min_trust: float = None) -> list:
         all_agents = self.list_all()
         keyword_lower = keyword.lower()
-        results = []
+        scored = []
         for agent in all_agents:
-            if keyword_lower in agent.skill_md.lower():
+            skill_lower = agent.skill_md.lower()
+            if keyword_lower in skill_lower:
                 if min_trust is not None and agent.success_rate < min_trust:
                     continue
-                results.append(agent)
-        return sorted(results, key=lambda a: -a.success_rate)
+                relevance = skill_lower.count(keyword_lower)
+                scored.append((agent, relevance))
+        scored.sort(key=lambda x: (-x[1], -x[0].success_rate))
+        return [agent for agent, _ in scored]
 
     def reset(self) -> None:
         keys = self._redis.keys(f"{self.KEY_PREFIX}*")

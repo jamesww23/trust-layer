@@ -32,16 +32,19 @@ TASK_CATALOG = [
 DEFAULT_TRUST_THRESHOLD = 0.3
 
 
-def update_trust(agent: Agent, outcome: bool) -> float:
-    """Update agent trust score based on interaction outcome.
+def update_trust(agent: Agent, feedback_score: float) -> float:
+    """Update agent trust score using the requester's feedback score.
 
-    new_success_rate = (old * total_runs + outcome) / (total_runs + 1)
+    The feedback score (0.0–1.0) is the signal from the requester after
+    evaluating the outcome.  This is the value that enters the running
+    average so that the full path is: Outcome → Feedback → Registry Update.
+
+    new_success_rate = (old * total_runs + feedback_score) / (total_runs + 1)
 
     Returns the new success_rate.
     """
     old_sr = agent.success_rate
-    outcome_val = 1.0 if outcome else 0.0
-    new_sr = (old_sr * agent.total_runs + outcome_val) / (agent.total_runs + 1)
+    new_sr = (old_sr * agent.total_runs + feedback_score) / (agent.total_runs + 1)
     agent.success_rate = round(new_sr, 4)
     agent.total_runs += 1
     return agent.success_rate
@@ -89,7 +92,11 @@ def apply_trust_gate(candidates: list, threshold: float) -> tuple:
 def submit_feedback(store: AgentStore, provider_id: str, score: float) -> dict:
     """Submit explicit feedback for an agent (standalone endpoint support).
 
-    Score is 0.0-1.0. Adjusts trust slightly based on feedback.
+    Uses the same update_trust path as the simulation loop so that
+    the standalone endpoint and the simulation are coherent.
+
+    Score is 0.0-1.0.  Treated as a feedback observation and folded
+    into the running-average trust score.
     Returns updated agent dict.
     """
     if score < 0.0 or score > 1.0:
@@ -98,9 +105,7 @@ def submit_feedback(store: AgentStore, provider_id: str, score: float) -> dict:
     if agent is None:
         raise ValueError(f"Agent '{provider_id}' not found")
 
-    # Blend feedback into trust: small adjustment toward feedback score
-    adjustment = (score - agent.success_rate) * 0.1
-    agent.success_rate = round(max(0.0, min(1.0, agent.success_rate + adjustment)), 4)
+    update_trust(agent, score)
     store.upsert(agent)
     return agent.to_dict()
 
@@ -199,8 +204,8 @@ def run_simulation(store: AgentStore, rounds: int = 5,
         # --- 5. FEEDBACK ---
         feedback_score = compute_feedback_score(outcome, provider)
 
-        # --- 6. REGISTRY UPDATE ---
-        trust_after = update_trust(provider, outcome)
+        # --- 6. REGISTRY UPDATE (uses feedback, not raw outcome) ---
+        trust_after = update_trust(provider, feedback_score)
         store.upsert(provider)
 
         # Record full interaction trace

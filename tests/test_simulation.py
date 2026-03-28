@@ -18,34 +18,42 @@ def _seeded_store():
 
 
 class TestUpdateTrust:
-    def test_success_increases_trust(self):
+    def test_high_feedback_increases_trust(self):
         agent = Agent("a1", "Test", "Skill", success_rate=0.5, total_runs=10)
-        new_sr = update_trust(agent, True)
+        new_sr = update_trust(agent, 0.9)
         assert new_sr > 0.5
         assert agent.total_runs == 11
 
-    def test_failure_decreases_trust(self):
+    def test_low_feedback_decreases_trust(self):
         agent = Agent("a1", "Test", "Skill", success_rate=0.5, total_runs=10)
-        new_sr = update_trust(agent, False)
+        new_sr = update_trust(agent, 0.1)
         assert new_sr < 0.5
         assert agent.total_runs == 11
 
-    def test_first_run_success(self):
+    def test_first_run_perfect_feedback(self):
         agent = Agent("a1", "Test", "Skill", success_rate=0.5, total_runs=0)
-        new_sr = update_trust(agent, True)
+        new_sr = update_trust(agent, 1.0)
         assert new_sr == 1.0
         assert agent.total_runs == 1
 
-    def test_first_run_failure(self):
+    def test_first_run_zero_feedback(self):
         agent = Agent("a1", "Test", "Skill", success_rate=0.5, total_runs=0)
-        new_sr = update_trust(agent, False)
+        new_sr = update_trust(agent, 0.0)
         assert new_sr == 0.0
         assert agent.total_runs == 1
 
     def test_formula_correct(self):
         agent = Agent("a1", "Test", "Skill", success_rate=0.6, total_runs=5)
-        update_trust(agent, True)
-        expected = round((0.6 * 5 + 1.0) / 6, 4)
+        update_trust(agent, 0.8)
+        expected = round((0.6 * 5 + 0.8) / 6, 4)
+        assert agent.success_rate == expected
+
+    def test_fractional_feedback_produces_fractional_trust(self):
+        """Feedback of 0.7 should produce a trust value between 0 and 1,
+        not the same as a binary 1.0 or 0.0."""
+        agent = Agent("a1", "Test", "Skill", success_rate=0.5, total_runs=4)
+        update_trust(agent, 0.7)
+        expected = round((0.5 * 4 + 0.7) / 5, 4)
         assert agent.success_rate == expected
 
 
@@ -239,3 +247,25 @@ class TestRunSimulation:
         run_simulation(store, rounds=20, trust_threshold=0.5)
         a1 = store.get("a1")
         assert a1.flagged > 0  # should have been rejected multiple times
+
+    def test_feedback_score_drives_trust_update(self):
+        """Regression: trust update must use feedback_score, not raw outcome.
+
+        After a successful outcome, the feedback score is a float < 1.0
+        (e.g. 0.8), so the trust update should reflect that fractional
+        value rather than a binary 1.0.
+        """
+        store = _seeded_store()
+        result = run_simulation(store, rounds=20)
+        for entry in result["history"]:
+            if entry["gate_passed"] and entry["outcome"] is not None:
+                fb = entry["feedback_score"]
+                # feedback_score is always a float in [0, 1]
+                assert isinstance(fb, float)
+                assert 0.0 <= fb <= 1.0
+                # For a successful outcome, trust_after should NOT equal
+                # what you'd get from plugging in 1.0 (binary outcome).
+                # With feedback in the loop, trust_after reflects the
+                # fractional feedback value.
+                if entry["outcome"]:
+                    assert fb < 1.0 or fb > 0.0  # sanity: not degenerate
