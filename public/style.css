@@ -27,6 +27,38 @@ h1 {
   max-width: 600px;
 }
 
+/* === Tab Navigation === */
+.tab-nav {
+  max-width: 1120px; margin: 0 auto;
+  padding: 0 24px;
+  display: flex; gap: 4px;
+  border-bottom: 1px solid #21262d;
+}
+.tab-btn {
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: #8b949e; font-size: 14px; font-weight: 600;
+  padding: 12px 20px; cursor: pointer;
+  transition: all 0.15s;
+}
+.tab-btn:hover { color: #c9d1d9; }
+.tab-btn.active {
+  color: #f0f6fc; border-bottom-color: #58a6ff;
+}
+
+/* === Tab Panels === */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.tab-content-single {
+  max-width: 1120px; margin: 0 auto;
+  padding: 24px;
+}
+
+.section-divider {
+  border: none; border-top: 1px solid #21262d;
+  margin: 8px 0 24px;
+}
+
 /* === Layout === */
 .layout {
   max-width: 1120px; margin: 0 auto;
@@ -316,4 +348,7 @@ footer {
   .sidebar { position: static; order: -1; }
   header { padding: 24px 16px 20px; }
   .layout { padding: 16px; }
+  .tab-nav { padding: 0 16px; overflow-x: auto; }
+  .tab-btn { padding: 10px 14px; font-size: 13px; white-space: nowrap; }
+  .tab-content-single { padding: 16px; }
 }

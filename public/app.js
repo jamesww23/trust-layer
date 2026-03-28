@@ -5,6 +5,25 @@ const API = window.location.origin;
 document.addEventListener("DOMContentLoaded", loadAgents);
 
 // ============================================================
+// TAB NAVIGATION
+// ============================================================
+
+function switchTab(tabId) {
+  // Deactivate all tabs and panels
+  document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+  document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.remove("active"));
+
+  // Activate selected panel
+  document.getElementById("tab-" + tabId).classList.add("active");
+
+  // Activate matching button by data attribute
+  document.querySelector('.tab-btn[data-tab="' + tabId + '"]').classList.add("active");
+
+  // Scroll to top
+  window.scrollTo(0, 0);
+}
+
+// ============================================================
 // 1. LOAD & DISPLAY AGENTS
 // ============================================================
 
