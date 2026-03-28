@@ -115,7 +115,8 @@ def validate_delegation(store: AgentStore, requester_id: str, provider_id: str,
         )
 
 
-def submit_feedback(store: AgentStore, provider_id: str, score: float) -> dict:
+def submit_feedback(store: AgentStore, provider_id: str, score: float,
+                    task_id: str = None, rated_by: str = None) -> dict:
     """Submit explicit feedback for an agent (standalone endpoint support).
 
     Uses the same update_trust path as the simulation loop so that
@@ -123,17 +124,48 @@ def submit_feedback(store: AgentStore, provider_id: str, score: float) -> dict:
 
     Score is 0.0-1.0.  Treated as a feedback observation and folded
     into the running-average trust score.
-    Returns updated agent dict.
+
+    If task_id is provided, the task is marked as 'rated' with the score.
+
+    Returns dict with agent, trust_before, trust_after, and task context.
     """
+    from datetime import datetime, timezone
+
     if score < 0.0 or score > 1.0:
         raise ValueError("Feedback score must be between 0.0 and 1.0")
     agent = store.get(provider_id)
     if agent is None:
         raise ValueError(f"Agent '{provider_id}' not found")
 
+    trust_before = agent.trust_score
     update_trust(agent, score)
+    trust_after = agent.trust_score
     store.upsert(agent)
-    return agent.to_dict()
+
+    result = {
+        "agent": agent.to_dict(),
+        "trust_before": trust_before,
+        "trust_after": trust_after,
+        "provider_id": provider_id,
+        "rating": score,
+    }
+
+    # If task_id provided, mark task as rated
+    if task_id:
+        task = store.get_task(task_id)
+        if task:
+            task.status = "rated"
+            task.rating = score
+            task.rated_by = rated_by or task.requester_id
+            task.rated_at = datetime.now(timezone.utc).isoformat()
+            store.save_task(task)
+            result["task"] = task.to_dict()
+            result["requester_id"] = task.requester_id
+
+    if rated_by:
+        result["rated_by"] = rated_by
+
+    return result
 
 
 def _find_providers(store: AgentStore, task_entry: dict, exclude_id: str) -> list:
@@ -223,9 +255,16 @@ def run_simulation(store: AgentStore, rounds: int = 5,
         top = passed[:min(2, len(passed))]
         provider = random.choice(top)
 
+        # Track task received
+        provider.tasks_received += 1
+
         # --- 4. OUTCOME ---
         trust_before = provider.trust_score
         outcome = determine_outcome(provider)
+
+        # Track task completed (result submitted)
+        if outcome:
+            provider.tasks_completed += 1
 
         # --- 5. FEEDBACK ---
         feedback_score = compute_feedback_score(outcome, provider)

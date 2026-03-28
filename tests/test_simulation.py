@@ -151,13 +151,15 @@ class TestSubmitFeedback:
         store = MemoryStore()
         store.register(Agent("a1", "Test", "Skill", success_rate=0.5))
         result = submit_feedback(store, "a1", 1.0)
-        assert result["success_rate"] > 0.5
+        assert result["agent"]["success_rate"] > 0.5
+        assert result["trust_after"] >= result["trust_before"]
 
     def test_negative_feedback_lowers_trust(self):
         store = MemoryStore()
         store.register(Agent("a1", "Test", "Skill", success_rate=0.5))
         result = submit_feedback(store, "a1", 0.0)
-        assert result["success_rate"] < 0.5
+        assert result["agent"]["success_rate"] < 0.5
+        assert result["trust_after"] <= result["trust_before"]
 
     def test_invalid_score_rejected(self):
         store = MemoryStore()

@@ -35,6 +35,7 @@ async function loadAgents() {
     renderAgentList(data.agents);
     renderRankings(data.agents);
     populateRateDropdown(data.agents);
+    populateTaskDropdowns(data.agents);
   } catch (err) {
     document.getElementById("agent-list").innerHTML =
       '<p class="empty-state">Error loading agents: ' + esc(err.message) + '</p>';
@@ -66,8 +67,10 @@ function renderAgentList(agents) {
         </div>
         <div class="agent-skill-md">${skillHtml}</div>
         <div class="agent-stats">
+          <span class="stat">Rating avg: <strong>${a.total_runs > 0 ? (a.success_rate * 100).toFixed(0) + '%' : '—'}</strong></span>
           <span class="stat">Ratings: <strong>${a.total_runs}</strong></span>
           <span class="stat">Tasks: <strong>${a.tasks_completed || 0}/${a.tasks_received || 0}</strong></span>
+          <span class="stat">Completion: <strong>${a.tasks_received > 0 ? ((a.completion_rate || 0) * 100).toFixed(0) + '%' : '—'}</strong></span>
           <span class="stat">Confidence: <strong>${((a.confidence || 0) * 100).toFixed(0)}%</strong></span>
           ${flaggedHtml}
         </div>
@@ -269,8 +272,10 @@ async function submitRating(score) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Rating failed");
 
-    const ts = data.agent.trust_score != null ? data.agent.trust_score : data.agent.success_rate;
-    status.textContent = "Rated! " + data.agent.agent_name + " now has " + scoreNum(ts) + "% trust.";
+    const beforePct = data.trust_before != null ? Math.round(data.trust_before * 100) : '?';
+    const afterPct = data.trust_after != null ? Math.round(data.trust_after * 100) : '?';
+    const arrow = afterPct >= beforePct ? "\u2191" : "\u2193";
+    status.textContent = "Rated! Trust: " + beforePct + "% " + arrow + " " + afterPct + "%";
 
     // Refresh the page data
     loadAgents();
@@ -386,7 +391,7 @@ function renderSimResults(data) {
   html += "</tbody></table>";
 
   html += '<h3 class="final-title">Final Standings</h3>';
-  html += '<table class="sim-table"><thead><tr><th>#</th><th>Agent</th><th>Trust</th><th>Tasks done</th><th>Times blocked</th></tr></thead><tbody>';
+  html += '<table class="sim-table"><thead><tr><th>#</th><th>Agent</th><th>Trust</th><th>Rating avg</th><th>Tasks</th><th>Completion</th><th>Confidence</th><th>Blocked</th></tr></thead><tbody>';
   data.final_agents.forEach((a, i) => {
     const flaggedCell = a.flagged > 0
       ? `<span class="flagged-count">${a.flagged}</span>`
@@ -394,9 +399,12 @@ function renderSimResults(data) {
     html += `
       <tr class="${i === 0 ? 'winner-row' : ''}">
         <td>${i + 1}</td>
-        <td><strong>${esc(a.agent_name)}</strong> <span class="agent-id-small">${esc(a.agent_id)}</span></td>
+        <td><strong>${esc(a.agent_name)}</strong></td>
         <td><strong>${scoreNum(a.trust_score != null ? a.trust_score : a.success_rate)}%</strong></td>
-        <td>${a.total_runs}</td>
+        <td>${a.total_runs > 0 ? (a.success_rate * 100).toFixed(0) + '%' : '—'}</td>
+        <td>${a.tasks_completed || 0}/${a.tasks_received || 0}</td>
+        <td>${a.tasks_received > 0 ? ((a.completion_rate || 0) * 100).toFixed(0) + '%' : '—'}</td>
+        <td>${((a.confidence || 0) * 100).toFixed(0)}%</td>
         <td>${flaggedCell}</td>
       </tr>
     `;
@@ -405,6 +413,208 @@ function renderSimResults(data) {
 
   el.innerHTML = html;
   section.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// ============================================================
+// 7. TASK LIFECYCLE
+// ============================================================
+
+function populateTaskDropdowns(agents) {
+  const ids = ["delegate-requester", "delegate-provider", "inbox-agent"];
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.innerHTML = '<option value="">Select agent...</option>';
+    const sorted = [...agents].sort((a, b) => a.agent_name.localeCompare(b.agent_name));
+    for (const a of sorted) {
+      const opt = document.createElement("option");
+      opt.value = a.agent_id;
+      opt.textContent = a.agent_name + " (" + a.agent_id + ")";
+      el.appendChild(opt);
+    }
+  }
+}
+
+async function delegateTask() {
+  const status = document.getElementById("delegate-status");
+  const requesterId = document.getElementById("delegate-requester").value;
+  const providerId = document.getElementById("delegate-provider").value;
+  const description = document.getElementById("delegate-description").value.trim();
+  const payload = document.getElementById("delegate-payload").value.trim();
+
+  if (!requesterId) { status.textContent = "Select a requester."; return; }
+  if (!providerId) { status.textContent = "Select a provider."; return; }
+  if (!description) { status.textContent = "Enter a task description."; return; }
+
+  status.textContent = "Delegating...";
+  try {
+    const body = { requester_id: requesterId, provider_id: providerId, description };
+    if (payload) body.payload = payload;
+    const res = await fetch(API + "/api/delegate-task", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Delegation failed");
+    status.textContent = "Task delegated! ID: " + data.task.task_id;
+    status.className = "status-msg status-success";
+    document.getElementById("delegate-description").value = "";
+    document.getElementById("delegate-payload").value = "";
+    loadAgents();
+  } catch (err) {
+    status.textContent = "Error: " + err.message;
+    status.className = "status-msg status-error";
+  }
+}
+
+async function loadInbox() {
+  const agentId = document.getElementById("inbox-agent").value;
+  const el = document.getElementById("inbox-results");
+  if (!agentId) { el.innerHTML = '<p class="empty-state">Select an agent first.</p>'; return; }
+
+  try {
+    const res = await fetch(API + "/api/tasks?agent_id=" + encodeURIComponent(agentId));
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to load");
+    const tasks = data.tasks || [];
+    if (tasks.length === 0) {
+      el.innerHTML = '<p class="empty-state">No tasks for this agent yet.</p>';
+      return;
+    }
+    el.innerHTML = tasks.map(t => renderTaskCard(t)).join("");
+  } catch (err) {
+    el.innerHTML = '<p class="status-error">Error: ' + esc(err.message) + '</p>';
+  }
+}
+
+function renderTaskCard(t) {
+  const statusClass = t.status === "pending" ? "status-pending" : t.status === "completed" ? "status-completed" : "status-rated";
+  const statusLabel = t.status.charAt(0).toUpperCase() + t.status.slice(1);
+
+  let actionsHtml = "";
+  if (t.status === "pending") {
+    actionsHtml = `
+      <div class="task-action">
+        <input type="text" id="result-${t.task_id}" placeholder="Type your result here..." style="width:100%; margin-bottom:6px;">
+        <button class="btn-primary btn-sm" onclick="submitTaskResult('${t.task_id}')">Submit Result</button>
+      </div>`;
+  } else if (t.status === "completed") {
+    actionsHtml = `
+      <div class="task-action">
+        <span class="task-action-label">Rate this work:</span>
+        <div class="rating-buttons rating-buttons-sm">
+          ${[1,2,3,4,5,6,7,8,9,10].map(n =>
+            `<button class="rating-btn-sm ${n <= 3 ? 'rating-low' : n <= 5 ? 'rating-mid' : n <= 7 ? '' : n <= 9 ? 'rating-high' : 'rating-great'}" onclick="rateCompletedTask('${t.task_id}', '${t.provider_id}', '${t.requester_id}', ${n/10})">${n}</button>`
+          ).join("")}
+        </div>
+      </div>`;
+  } else if (t.status === "rated") {
+    actionsHtml = `<div class="task-rated-info">Rated: <strong>${Math.round(t.rating * 10)}/10</strong> by ${esc(t.rated_by || t.requester_id)}</div>`;
+  }
+
+  return `
+    <div class="task-card">
+      <div class="task-card-header">
+        <span class="task-status ${statusClass}">${statusLabel}</span>
+        <span class="task-id">${esc(t.task_id)}</span>
+      </div>
+      <div class="task-description">${esc(t.description)}</div>
+      <div class="task-meta">
+        <span>From: <strong>${esc(t.requester_id)}</strong></span>
+        <span>To: <strong>${esc(t.provider_id)}</strong></span>
+      </div>
+      ${t.payload ? '<div class="task-payload"><strong>Payload:</strong> ' + esc(t.payload.substring(0, 200)) + (t.payload.length > 200 ? '...' : '') + '</div>' : ''}
+      ${t.result ? '<div class="task-result"><strong>Result:</strong> ' + esc(t.result.substring(0, 200)) + (t.result.length > 200 ? '...' : '') + '</div>' : ''}
+      ${actionsHtml}
+    </div>
+  `;
+}
+
+async function submitTaskResult(taskId) {
+  const input = document.getElementById("result-" + taskId);
+  const result = input ? input.value.trim() : "";
+  if (!result) { alert("Enter a result first."); return; }
+
+  try {
+    const res = await fetch(API + "/api/submit-result", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task_id: taskId, result }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Submit failed");
+    loadInbox();
+    loadAgents();
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+}
+
+async function rateCompletedTask(taskId, providerId, requesterId, score) {
+  try {
+    const res = await fetch(API + "/api/submit-feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        agent_id: providerId,
+        score: score,
+        task_id: taskId,
+        rated_by: requesterId,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Rating failed");
+
+    // Show trust change
+    const beforePct = Math.round(data.trust_before * 100);
+    const afterPct = Math.round(data.trust_after * 100);
+    const arrow = afterPct >= beforePct ? "\u2191" : "\u2193";
+    alert("Rated " + Math.round(score * 10) + "/10. Trust: " + beforePct + "% " + arrow + " " + afterPct + "%");
+
+    loadInbox();
+    loadAgents();
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+}
+
+// ============================================================
+// 8. ACTIVITY FEED
+// ============================================================
+
+async function loadActivity() {
+  const el = document.getElementById("activity-feed");
+  try {
+    const res = await fetch(API + "/api/activity");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to load activity");
+    const events = data.activity || [];
+    if (events.length === 0) {
+      el.innerHTML = '<p class="empty-state">No activity yet. Delegate a task to get started.</p>';
+      return;
+    }
+    el.innerHTML = events.map(e => {
+      const statusClass = e.status === "pending" ? "status-pending" : e.status === "completed" ? "status-completed" : "status-rated";
+      let detail = "";
+      if (e.status === "pending") {
+        detail = `<strong>${esc(e.requester_name)}</strong> delegated task to <strong>${esc(e.provider_name)}</strong>`;
+      } else if (e.status === "completed") {
+        detail = `<strong>${esc(e.provider_name)}</strong> submitted result for <strong>${esc(e.requester_name)}</strong>`;
+      } else if (e.status === "rated") {
+        detail = `<strong>${esc(e.requester_name)}</strong> rated <strong>${esc(e.provider_name)}</strong>: ${Math.round(e.rating * 10)}/10`;
+      }
+      return `
+        <div class="activity-row">
+          <span class="task-status ${statusClass}">${e.status}</span>
+          <span class="activity-detail">${detail}</span>
+          <span class="activity-desc">${esc(e.description)}</span>
+        </div>
+      `;
+    }).join("");
+  } catch (err) {
+    el.innerHTML = '<p class="status-error">Error: ' + esc(err.message) + '</p>';
+  }
 }
 
 // ============================================================

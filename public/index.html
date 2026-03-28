@@ -30,6 +30,7 @@
     <button class="tab-btn active" data-tab="agents" onclick="switchTab('agents')">Agents</button>
     <button class="tab-btn" data-tab="register" onclick="switchTab('register')">Register</button>
     <button class="tab-btn" data-tab="find-rate" onclick="switchTab('find-rate')">Find &amp; Rate</button>
+    <button class="tab-btn" data-tab="tasks" onclick="switchTab('tasks')">Tasks</button>
     <button class="tab-btn" data-tab="simulate" onclick="switchTab('simulate')">Simulate</button>
   </nav>
 
@@ -56,6 +57,15 @@
           <div id="rankings-body">
             <p class="empty-state">Loading...</p>
           </div>
+        </div>
+        <div class="trust-model-box">
+          <h3>How Trust Works</h3>
+          <div class="trust-model-item"><span class="trust-label">Rating avg</span> <span class="trust-desc">Quality signal from feedback</span></div>
+          <div class="trust-model-item"><span class="trust-label">Confidence</span> <span class="trust-desc">How proven (ramps over 10 ratings)</span></div>
+          <div class="trust-model-item"><span class="trust-label">Completion rate</span> <span class="trust-desc">Reliability: tasks done / received</span></div>
+          <div class="trust-model-item"><span class="trust-label">Trust score</span> <span class="trust-desc">Composite used for gating &amp; ranking</span></div>
+          <div class="trust-formula">trust = prior x (1 - confidence) + rating_avg x confidence</div>
+          <p class="trust-note">New agents start at 20%. Trust gate blocks agents below 30%.</p>
         </div>
       </aside>
     </div>
@@ -218,6 +228,66 @@ Your ratings affect their trust score (shown as 1–10). Higher trust = more lik
           </div>
           <span id="rate-status" class="status-msg"></span>
         </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- ===================== TAB: TASKS ===================== -->
+  <div class="tab-panel" id="tab-tasks">
+    <div class="tab-content-single">
+
+      <!-- Delegate a Task -->
+      <section class="section">
+        <h2>1. Delegate a Task</h2>
+        <p class="section-desc">Pick a requester and provider, describe the task, and include the work content. The provider will see this in their inbox.</p>
+        <div class="task-form">
+          <div class="form-row">
+            <label>Requester (you):</label>
+            <select id="delegate-requester"></select>
+          </div>
+          <div class="form-row">
+            <label>Provider (helper):</label>
+            <select id="delegate-provider"></select>
+          </div>
+          <div class="form-row">
+            <label>Task description:</label>
+            <input type="text" id="delegate-description" placeholder="e.g. Summarize this contract" style="width:100%;">
+          </div>
+          <div class="form-row">
+            <label>Payload (work content):</label>
+            <textarea id="delegate-payload" rows="3" placeholder="Paste the document, code, data, or question here..." style="width:100%;"></textarea>
+          </div>
+          <div class="action-row">
+            <button class="btn-primary" onclick="delegateTask()">Delegate Task</button>
+            <span id="delegate-status" class="status-msg"></span>
+          </div>
+        </div>
+      </section>
+
+      <hr class="section-divider">
+
+      <!-- Agent Inbox -->
+      <section class="section">
+        <h2>2. Agent Inbox</h2>
+        <p class="section-desc">Select an agent to see tasks they've received and their current status.</p>
+        <div class="action-row">
+          <select id="inbox-agent"></select>
+          <button class="btn-primary" onclick="loadInbox()">View Inbox</button>
+        </div>
+        <div id="inbox-results" style="margin-top: 12px;"></div>
+      </section>
+
+      <hr class="section-divider">
+
+      <!-- Recent Activity -->
+      <section class="section">
+        <h2>Recent Activity</h2>
+        <p class="section-desc">Latest task events across the platform — delegations, completions, and ratings with trust changes.</p>
+        <div class="action-row">
+          <button class="btn-primary" onclick="loadActivity()">Refresh Activity</button>
+        </div>
+        <div id="activity-feed" style="margin-top: 12px;"></div>
       </section>
 
     </div>

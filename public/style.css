@@ -340,6 +340,111 @@ input:focus { border-color: #58a6ff; outline: none; }
 
 .empty-state { color: #484f58; font-size: 14px; text-align: center; padding: 24px; }
 
+/* === Trust Model Box === */
+.trust-model-box {
+  background: #161b22; border: 1px solid #21262d; border-radius: 8px;
+  padding: 14px 16px; margin-top: 16px;
+}
+.trust-model-box h3 {
+  color: #f0f6fc; font-size: 13px; font-weight: 700;
+  margin-bottom: 10px;
+}
+.trust-model-item {
+  display: flex; justify-content: space-between; gap: 8px;
+  padding: 4px 0; border-bottom: 1px solid #21262d;
+}
+.trust-model-item:last-of-type { border-bottom: none; }
+.trust-label {
+  color: #58a6ff; font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.trust-desc {
+  color: #8b949e; font-size: 11px; text-align: right;
+}
+.trust-formula {
+  background: #0d1117; border: 1px solid #21262d; border-radius: 4px;
+  padding: 6px 8px; margin-top: 10px;
+  color: #d2a8ff; font-size: 11px; font-family: monospace;
+}
+.trust-note {
+  color: #484f58; font-size: 11px; margin-top: 8px; line-height: 1.5;
+}
+
+/* === Task Cards === */
+.task-card {
+  background: #161b22; border: 1px solid #21262d; border-radius: 8px;
+  padding: 14px 16px; margin-bottom: 10px;
+}
+.task-card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.task-status {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 4px;
+}
+.status-pending { background: #2d1f00; color: #d29922; }
+.status-completed { background: #0c2d6b; color: #58a6ff; }
+.status-rated { background: #0d2818; color: #3fb950; }
+.task-id { color: #484f58; font-size: 11px; font-family: monospace; }
+.task-description { color: #c9d1d9; font-size: 13px; margin-bottom: 6px; }
+.task-meta { color: #8b949e; font-size: 12px; display: flex; gap: 16px; margin-bottom: 6px; }
+.task-meta strong { color: #58a6ff; }
+.task-payload, .task-result {
+  background: #0d1117; border: 1px solid #21262d; border-radius: 4px;
+  padding: 8px 10px; font-size: 12px; color: #8b949e; margin-top: 6px;
+  line-height: 1.5; word-break: break-word;
+}
+.task-result strong, .task-payload strong { color: #c9d1d9; }
+.task-action { margin-top: 10px; }
+.task-action-label { color: #8b949e; font-size: 12px; display: block; margin-bottom: 6px; }
+.task-rated-info { color: #3fb950; font-size: 12px; margin-top: 8px; }
+.task-rated-info strong { color: #3fb950; }
+
+/* Task form */
+.task-form { max-width: 600px; }
+.form-row { margin-bottom: 12px; }
+.form-row label {
+  display: block; color: #c9d1d9; font-size: 13px; font-weight: 600;
+  margin-bottom: 4px;
+}
+.form-row select, .form-row input, .form-row textarea {
+  width: 100%; background: #161b22; color: #c9d1d9;
+  border: 1px solid #30363d; border-radius: 6px;
+  padding: 8px 10px; font-size: 13px;
+}
+
+/* Small rating buttons for task cards */
+.rating-buttons-sm { display: flex; gap: 4px; }
+.rating-btn-sm {
+  background: #21262d; color: #c9d1d9; border: 1px solid #30363d;
+  padding: 4px 10px; font-size: 12px; font-weight: 600;
+  border-radius: 4px; cursor: pointer; transition: all 0.15s;
+}
+.rating-btn-sm:hover { background: #30363d; border-color: #484f58; }
+.rating-btn-sm.rating-low { color: #f85149; }
+.rating-btn-sm.rating-mid { color: #d29922; }
+.rating-btn-sm.rating-high { color: #3fb950; }
+.rating-btn-sm.rating-great { background: #238636; border-color: #238636; color: #fff; }
+
+.btn-sm { padding: 6px 16px; font-size: 12px; }
+
+/* === Activity Feed === */
+.activity-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; background: #161b22;
+  border: 1px solid #21262d; border-radius: 6px;
+  margin-bottom: 6px;
+}
+.activity-detail { color: #c9d1d9; font-size: 13px; flex: 1; }
+.activity-detail strong { color: #58a6ff; }
+.activity-desc {
+  color: #484f58; font-size: 11px; max-width: 200px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.status-success { color: #3fb950; }
+.status-error { color: #f85149; }
+
 /* === Footer === */
 footer {
   max-width: 1120px; margin: 40px auto 0;

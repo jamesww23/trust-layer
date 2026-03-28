@@ -39,6 +39,8 @@ class DevHandler(SimpleHTTPRequestHandler):
         elif parsed.path == "/api/tasks":
             params = parse_qs(parsed.query)
             self._api_tasks(params)
+        elif parsed.path == "/api/activity":
+            self._api_activity()
         else:
             super().do_GET()
 
@@ -104,14 +106,17 @@ class DevHandler(SimpleHTTPRequestHandler):
         try:
             agent_id = body.get("agent_id")
             score = body.get("score")
+            task_id = body.get("task_id")
+            rated_by = body.get("rated_by")
             if not agent_id:
                 self._json_error(400, "agent_id is required")
                 return
             if score is None or not isinstance(score, (int, float)):
                 self._json_error(400, "score must be a number between 0.0 and 1.0")
                 return
-            result = submit_feedback(store, agent_id, float(score))
-            self._json_response({"status": "feedback_recorded", "agent": result})
+            result = submit_feedback(store, agent_id, float(score),
+                                     task_id=task_id, rated_by=rated_by)
+            self._json_response({"status": "feedback_recorded", **result})
         except ValueError as e:
             self._json_error(400, str(e))
 
@@ -198,7 +203,7 @@ class DevHandler(SimpleHTTPRequestHandler):
         task = store.get_task(task_id)
         if not task:
             self._json_error(404, f"Task '{task_id}' not found"); return
-        if task.status == "completed":
+        if task.status in ("completed", "rated"):
             self._json_error(400, "Task already completed"); return
         task.status = "completed"
         task.result = result
@@ -212,6 +217,33 @@ class DevHandler(SimpleHTTPRequestHandler):
             "task": task.to_dict(),
             "message": f"Result submitted. The requester ({task.requester_id}) can now rate your work at POST /api/submit-feedback",
         })
+
+    def _api_activity(self):
+        """Return recent tasks sorted by most recently updated, enriched with agent names."""
+        all_tasks = []
+        # Collect all tasks from store
+        for agent in store.list_all():
+            for task in store.get_tasks_for_agent(agent.agent_id):
+                all_tasks.append(task)
+        # Deduplicate by task_id
+        seen = set()
+        unique = []
+        for t in all_tasks:
+            if t.task_id not in seen:
+                seen.add(t.task_id)
+                unique.append(t)
+        unique.sort(key=lambda t: t.updated_at, reverse=True)
+        # Enrich with agent names
+        events = []
+        for t in unique[:20]:
+            requester = store.get(t.requester_id)
+            provider = store.get(t.provider_id)
+            events.append({
+                **t.to_dict(),
+                "requester_name": requester.agent_name if requester else t.requester_id,
+                "provider_name": provider.agent_name if provider else t.provider_id,
+            })
+        self._json_response({"activity": events, "count": len(events)})
 
     # --- Helpers ---
 

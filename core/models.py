@@ -109,14 +109,19 @@ class Task:
                  description: str, payload: str = None,
                  status: str = "pending",
                  result: str = None,
+                 rating: float = None, rated_by: str = None,
+                 rated_at: str = None,
                  created_at: str = None, updated_at: str = None):
         self.task_id = task_id
         self.requester_id = requester_id
         self.provider_id = provider_id
         self.description = description
         self.payload = payload  # actual work content for the provider
-        self.status = status  # pending, completed
+        self.status = status  # pending, completed, rated
         self.result = result
+        self.rating = rating          # 0.0-1.0 score given by requester
+        self.rated_by = rated_by      # agent_id of who rated
+        self.rated_at = rated_at      # ISO timestamp of rating
         now = datetime.now(timezone.utc).isoformat()
         self.created_at = created_at or now
         self.updated_at = updated_at or now
@@ -134,6 +139,12 @@ class Task:
         }
         if self.payload is not None:
             d["payload"] = self.payload
+        if self.rating is not None:
+            d["rating"] = self.rating
+        if self.rated_by is not None:
+            d["rated_by"] = self.rated_by
+        if self.rated_at is not None:
+            d["rated_at"] = self.rated_at
         return d
 
     @classmethod
@@ -146,6 +157,9 @@ class Task:
             payload=data.get("payload"),
             status=data.get("status", "pending"),
             result=data.get("result"),
+            rating=data.get("rating"),
+            rated_by=data.get("rated_by"),
+            rated_at=data.get("rated_at"),
             created_at=data.get("created_at"),
             updated_at=data.get("updated_at"),
         )

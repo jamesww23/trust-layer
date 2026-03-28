@@ -46,7 +46,7 @@ class handler(BaseHTTPRequestHandler):
                 self._error(404, f"Task '{task_id}' not found")
                 return
 
-            if task.status == "completed":
+            if task.status in ("completed", "rated"):
                 self._error(400, "Task already completed")
                 return
 

@@ -34,6 +34,8 @@ class handler(BaseHTTPRequestHandler):
 
             agent_id = body.get("agent_id")
             score = body.get("score")
+            task_id = body.get("task_id")
+            rated_by = body.get("rated_by")
 
             if not agent_id:
                 self._error(400, "agent_id is required")
@@ -42,7 +44,8 @@ class handler(BaseHTTPRequestHandler):
                 self._error(400, "score must be a number between 0.0 and 1.0")
                 return
 
-            result = submit_feedback(store, agent_id, float(score))
+            result = submit_feedback(store, agent_id, float(score),
+                                     task_id=task_id, rated_by=rated_by)
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -50,7 +53,7 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({
                 "status": "feedback_recorded",
-                "agent": result,
+                **result,
             }).encode())
 
         except ValueError as e:
