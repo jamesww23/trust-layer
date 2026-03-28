@@ -37,6 +37,7 @@ class handler(BaseHTTPRequestHandler):
             requester_id = body.get("requester_id")
             provider_id = body.get("provider_id")
             description = body.get("description")
+            payload = body.get("payload")
 
             if not requester_id:
                 self._error(400, "requester_id is required")
@@ -73,6 +74,7 @@ class handler(BaseHTTPRequestHandler):
                 requester_id=requester_id,
                 provider_id=provider_id,
                 description=description,
+                payload=payload,
             )
             store.save_task(task)
             provider.tasks_received += 1

@@ -140,6 +140,7 @@ class DevHandler(SimpleHTTPRequestHandler):
         requester_id = body.get("requester_id")
         provider_id = body.get("provider_id")
         description = body.get("description")
+        payload = body.get("payload")
         if not requester_id:
             self._json_error(400, "requester_id is required"); return
         if not provider_id:
@@ -158,7 +159,8 @@ class DevHandler(SimpleHTTPRequestHandler):
             self._json_error(400, str(e)); return
         task_id = "task_" + uuid.uuid4().hex[:12]
         task = Task(task_id=task_id, requester_id=requester_id,
-                    provider_id=provider_id, description=description)
+                    provider_id=provider_id, description=description,
+                    payload=payload)
         store.save_task(task)
         provider.tasks_received += 1
         store.upsert(provider)

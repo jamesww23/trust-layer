@@ -106,13 +106,15 @@ class Task:
     """A delegated task from one agent to another."""
 
     def __init__(self, task_id: str, requester_id: str, provider_id: str,
-                 description: str, status: str = "pending",
+                 description: str, payload: str = None,
+                 status: str = "pending",
                  result: str = None,
                  created_at: str = None, updated_at: str = None):
         self.task_id = task_id
         self.requester_id = requester_id
         self.provider_id = provider_id
         self.description = description
+        self.payload = payload  # actual work content for the provider
         self.status = status  # pending, completed
         self.result = result
         now = datetime.now(timezone.utc).isoformat()
@@ -120,7 +122,7 @@ class Task:
         self.updated_at = updated_at or now
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "task_id": self.task_id,
             "requester_id": self.requester_id,
             "provider_id": self.provider_id,
@@ -130,6 +132,9 @@ class Task:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
+        if self.payload is not None:
+            d["payload"] = self.payload
+        return d
 
     @classmethod
     def from_dict(cls, data: dict) -> "Task":
@@ -138,6 +143,7 @@ class Task:
             requester_id=data["requester_id"],
             provider_id=data["provider_id"],
             description=data["description"],
+            payload=data.get("payload"),
             status=data.get("status", "pending"),
             result=data.get("result"),
             created_at=data.get("created_at"),
