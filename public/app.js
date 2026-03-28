@@ -3,6 +3,8 @@
 const API_BASE = window.location.origin;
 let currentRunId = null;
 let currentTab = "demo";
+let evalMode = "llm"; // "llm" or "paste"
+let knownAgents = []; // populated from API
 
 // --- Init ---
 document.addEventListener("DOMContentLoaded", () => {
@@ -18,6 +20,16 @@ function switchTab(tab) {
   if (tab === "history") loadHistory();
 }
 
+// --- Eval Mode Toggle ---
+function switchEvalMode(mode) {
+  evalMode = mode;
+  document.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("active", b.dataset.mode === mode));
+  document.getElementById("eval-llm-section").style.display = mode === "llm" ? "block" : "none";
+  document.getElementById("eval-paste-section").style.display = mode === "paste" ? "block" : "none";
+  document.getElementById("eval-run-btn").textContent =
+    mode === "llm" ? "Generate & Evaluate" : "Run Evaluation";
+}
+
 // --- Load State ---
 async function loadState() {
   try {
@@ -29,9 +41,58 @@ async function loadState() {
     renderDemoCandidates(data.candidates);
     if (data.scenarios) renderScenarios(data.scenarios);
     if (data.available_providers) renderProviders(data.available_providers);
+
+    // Build known agents list from profiles + providers
+    knownAgents = [];
+    if (data.profiles) {
+      data.profiles.forEach(p => {
+        if (!knownAgents.find(a => a.id === p.agent_id)) {
+          knownAgents.push({ id: p.agent_id, name: p.agent_name });
+        }
+      });
+    }
+    if (data.available_providers) {
+      data.available_providers.forEach(p => {
+        if (!knownAgents.find(a => a.id === p.agent_id)) {
+          knownAgents.push({ id: p.agent_id, name: p.agent_name });
+        }
+      });
+    }
+    // Populate existing agent dropdowns
+    document.querySelectorAll(".cand-agent-select").forEach(populateAgentDropdown);
   } catch (err) {
     setStatus("demo", "Error loading: " + err.message);
   }
+}
+
+// --- Agent Dropdown ---
+function populateAgentDropdown(select) {
+  const current = select.value;
+  select.innerHTML = '<option value="">Select an agent...</option>' +
+    knownAgents.map(a =>
+      `<option value="${esc(a.id)}">${esc(a.name)} (${esc(a.id)})</option>`
+    ).join("") +
+    '<option value="__custom__">Other (type name)...</option>';
+  if (current) select.value = current;
+}
+
+function onAgentSelect(select) {
+  const customInput = select.parentElement.querySelector(".cand-agent-id");
+  if (select.value === "__custom__") {
+    customInput.style.display = "block";
+    customInput.focus();
+  } else {
+    customInput.style.display = "none";
+    customInput.value = "";
+  }
+}
+
+function getAgentIdFromBlock(block) {
+  const select = block.querySelector(".cand-agent-select");
+  if (select.value === "__custom__") {
+    return block.querySelector(".cand-agent-id").value.trim();
+  }
+  return select.value;
 }
 
 // --- Leaderboard ---
@@ -41,7 +102,6 @@ function renderLeaderboard(profiles, config) {
     el.innerHTML = '<p class="empty-state">No agents yet</p>';
     return;
   }
-  // Sort by success_rate DESC, then total_runs DESC
   const sorted = [...profiles].sort((a, b) => b.success_rate - a.success_rate || b.total_runs - a.total_runs);
   el.innerHTML = sorted.map((p, i) => `
     <div class="leaderboard-agent">
@@ -57,7 +117,6 @@ function renderLeaderboard(profiles, config) {
     </div>
   `).join("");
 
-  // Scoring note
   if (config) {
     document.getElementById("scoring-note").textContent =
       `Score = ${(config.w_reputation * 100).toFixed(0)}% reputation + ${(config.w_relevancy * 100).toFixed(0)}% relevancy`;
@@ -131,24 +190,33 @@ async function runDemo() {
   }
 }
 
-// --- LLM ---
+// --- Providers ---
 function renderProviders(providers) {
   const el = document.getElementById("providers-status");
   if (!providers || providers.length === 0) {
-    el.innerHTML = '<span class="provider-tag">No providers configured</span>';
+    el.innerHTML = '<span class="provider-tag">No providers configured — set API keys in Vercel</span>';
     return;
   }
   el.innerHTML = providers.map(p =>
-    `<span class="provider-tag available">${esc(p.agent_name)}</span>`
+    `<span class="provider-tag available">${esc(p.agent_name)} (${esc(p.provider)})</span>`
   ).join("");
 }
 
+// --- Unified Evaluate ---
+async function runEvaluation() {
+  if (evalMode === "llm") {
+    await runLLM();
+  } else {
+    await runCustom();
+  }
+}
+
 async function runLLM() {
-  setStatus("llm", "Calling AI agents...");
+  setStatus("evaluate", "Calling AI agents...");
   try {
-    const prompt = document.getElementById("llm-prompt").value.trim();
-    if (!prompt) { setStatus("llm", "Enter a task prompt."); return; }
-    const keywordsRaw = document.getElementById("llm-keywords").value.trim();
+    const prompt = document.getElementById("eval-prompt").value.trim();
+    if (!prompt) { setStatus("evaluate", "Enter a task prompt."); return; }
+    const keywordsRaw = document.getElementById("eval-keywords").value.trim();
     const keywords = keywordsRaw ? keywordsRaw.split(",").map(k => k.trim()).filter(Boolean) : [];
 
     const res = await fetch(API_BASE + "/api/run-llm", {
@@ -158,67 +226,69 @@ async function runLLM() {
     });
     if (!res.ok) { const err = await res.json(); throw new Error(err.error || "LLM run failed"); }
     const data = await res.json();
-    renderResultsInto("llm-results", data, true);
+    renderResultsInto("evaluate-results", data, true);
     renderLeaderboard(data.profiles_after, null);
     loadHistory();
-    setStatus("llm", "");
+    setStatus("evaluate", "");
   } catch (err) {
-    setStatus("llm", "Error: " + err.message);
+    setStatus("evaluate", "Error: " + err.message);
   }
 }
 
-// --- Custom ---
-function addCandidate() {
-  const list = document.getElementById("candidates-list");
-  const block = document.createElement("div");
-  block.className = "candidate-input";
-  block.innerHTML =
-    '<input type="text" placeholder="Agent name" class="cand-agent-id">' +
-    '<textarea rows="2" placeholder="Paste the agent\'s response here..." class="cand-output"></textarea>' +
-    '<button class="remove-cand-btn" onclick="removeCandidate(this)">&times;</button>';
-  list.appendChild(block);
-}
-
-function removeCandidate(btn) {
-  const list = document.getElementById("candidates-list");
-  if (list.children.length <= 2) { setStatus("custom", "At least 2 agents required."); return; }
-  btn.parentElement.remove();
-}
-
 async function runCustom() {
-  setStatus("custom", "Running evaluation...");
+  setStatus("evaluate", "Running evaluation...");
   try {
-    const prompt = document.getElementById("custom-prompt").value.trim();
-    if (!prompt) { setStatus("custom", "Enter a task description."); return; }
-    const keywordsRaw = document.getElementById("custom-keywords").value.trim();
+    const prompt = document.getElementById("eval-prompt").value.trim();
+    if (!prompt) { setStatus("evaluate", "Enter a task description."); return; }
+    const keywordsRaw = document.getElementById("eval-keywords").value.trim();
     const keywords = keywordsRaw ? keywordsRaw.split(",").map(k => k.trim()).filter(Boolean) : [];
 
     const blocks = document.querySelectorAll(".candidate-input");
     const candidates = [];
     for (const block of blocks) {
-      const agentId = block.querySelector(".cand-agent-id").value.trim();
+      const agentId = getAgentIdFromBlock(block);
       const outputText = block.querySelector(".cand-output").value.trim();
-      if (!agentId || !outputText) { setStatus("custom", "Fill in all agent names and outputs."); return; }
+      if (!agentId || !outputText) { setStatus("evaluate", "Select an agent and paste output for each entry."); return; }
       candidates.push({ agent_id: agentId, output_text: outputText });
     }
-    if (candidates.length < 2) { setStatus("custom", "At least 2 agents required."); return; }
+    if (candidates.length < 2) { setStatus("evaluate", "At least 2 agents required."); return; }
     const ids = candidates.map(c => c.agent_id);
-    if (new Set(ids).size !== ids.length) { setStatus("custom", "Agent names must be unique."); return; }
+    if (new Set(ids).size !== ids.length) { setStatus("evaluate", "Each agent must be unique."); return; }
 
     const res = await fetch(API_BASE + "/api/run-custom", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ task: { prompt, expected_keywords: keywords }, candidates }),
     });
-    if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Custom run failed"); }
+    if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Run failed"); }
     const data = await res.json();
-    renderResultsInto("custom-results", data);
+    renderResultsInto("evaluate-results", data);
     renderLeaderboard(data.profiles_after, null);
     loadHistory();
-    setStatus("custom", "");
+    setStatus("evaluate", "");
   } catch (err) {
-    setStatus("custom", "Error: " + err.message);
+    setStatus("evaluate", "Error: " + err.message);
   }
+}
+
+// --- Candidate Management ---
+function addCandidate() {
+  const list = document.getElementById("candidates-list");
+  const block = document.createElement("div");
+  block.className = "candidate-input";
+  block.innerHTML =
+    '<select class="cand-agent-select" onchange="onAgentSelect(this)"><option value="">Select an agent...</option></select>' +
+    '<input type="text" placeholder="Or type a custom agent name" class="cand-agent-id" style="display:none;">' +
+    '<textarea rows="2" placeholder="Paste the agent\'s response here..." class="cand-output"></textarea>' +
+    '<button class="remove-cand-btn" onclick="removeCandidate(this)">&times;</button>';
+  list.appendChild(block);
+  populateAgentDropdown(block.querySelector(".cand-agent-select"));
+}
+
+function removeCandidate(btn) {
+  const list = document.getElementById("candidates-list");
+  if (list.children.length <= 2) { setStatus("evaluate", "At least 2 agents required."); return; }
+  btn.parentElement.remove();
 }
 
 // --- Results Renderer ---
@@ -233,7 +303,7 @@ function renderResultsInto(containerId, data, showCandidates = false) {
   const outcomeClass = result.outcome ? "outcome-accepted" : "outcome-rejected";
   const outcomeText = result.outcome ? "Accepted" : "Rejected";
 
-  // Build reputation diff
+  // Reputation diff
   const before = data.profiles_before ? data.profiles_before.find(p => p.agent_id === winnerId) : null;
   const after = data.profiles_after ? data.profiles_after.find(p => p.agent_id === winnerId) : null;
   let repDiffHtml = "";
@@ -248,7 +318,7 @@ function renderResultsInto(containerId, data, showCandidates = false) {
       </div>`;
   }
 
-  // Build candidate outputs section
+  // Candidate outputs
   let candidatesHtml = "";
   if (showCandidates && data.candidates) {
     candidatesHtml = `
@@ -268,7 +338,7 @@ function renderResultsInto(containerId, data, showCandidates = false) {
     <div class="result-winner">
       <div class="result-winner-label">${outcomeText} Winner</div>
       <div class="result-winner-name">${esc(winnerId)}</div>
-      <div class="result-winner-score">Trust Score: ${result.winner_score} &nbsp; | &nbsp; Outcome: <span class="${outcomeClass}">${outcomeText}</span></div>
+      <div class="result-winner-score">Trust Score: ${result.winner_score} &nbsp;|&nbsp; Outcome: <span class="${outcomeClass}">${outcomeText}</span></div>
       ${result.explanation ? `<div class="result-winner-explanation">${esc(result.explanation)}</div>` : ""}
     </div>
 
@@ -284,6 +354,20 @@ function renderResultsInto(containerId, data, showCandidates = false) {
 
     <div class="result-section">
       <div class="result-section-title">Ranking</div>
+      <div class="metrics-legend">
+        <div class="metric-item">
+          <span class="metric-label">Trust Score</span>
+          <span class="metric-desc">Overall score combining reputation and relevancy. This determines the winner.</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">Success Rate</span>
+          <span class="metric-desc">How often this agent has won past evaluations. Builds over time as the agent is used.</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">Relevancy</span>
+          <span class="metric-desc">How many expected keywords appeared in the agent's output for this task.</span>
+        </div>
+      </div>
       <table class="ranking-table">
         <thead><tr><th>#</th><th>Agent</th><th>Relevancy</th><th>Trust Score</th><th>Success Rate</th></tr></thead>
         <tbody>
@@ -361,7 +445,6 @@ async function resetState() {
     if (!res.ok) throw new Error("Reset failed");
     const data = await res.json();
     renderLeaderboard(data.profiles, null);
-    // Hide all result containers
     document.querySelectorAll(".results-container").forEach(el => el.style.display = "none");
     loadHistory();
   } catch (err) {
@@ -376,9 +459,7 @@ async function loadHistory() {
     if (!res.ok) return;
     const data = await res.json();
     renderHistory(data.runs);
-  } catch (err) {
-    // Silently fail
-  }
+  } catch (err) { /* silent */ }
 }
 
 function renderHistory(runs) {

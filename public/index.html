@@ -23,8 +23,7 @@
       <!-- Tabs -->
       <nav class="tabs">
         <button class="tab active" data-tab="demo" onclick="switchTab('demo')">Try a Demo</button>
-        <button class="tab" data-tab="llm" onclick="switchTab('llm')">Compare LLMs</button>
-        <button class="tab" data-tab="custom" onclick="switchTab('custom')">Custom Test</button>
+        <button class="tab" data-tab="evaluate" onclick="switchTab('evaluate')">Evaluate Agents</button>
         <button class="tab" data-tab="history" onclick="switchTab('history')">History</button>
       </nav>
 
@@ -61,68 +60,70 @@
         <div id="demo-results" class="results-container" style="display:none;"></div>
       </section>
 
-      <!-- Tab: Compare LLMs -->
-      <section id="tab-llm" class="tab-content">
+      <!-- Tab: Evaluate Agents -->
+      <section id="tab-evaluate" class="tab-content">
         <div class="tab-intro">
-          <p>Send a real task to multiple AI providers (OpenAI, Anthropic, Groq). Each generates a response, then the Trust Layer scores and ranks them.</p>
-          <div id="providers-status" class="providers-badge"></div>
+          <p>Enter a task, choose how to get agent outputs, and let the Trust Layer score and rank them.</p>
+        </div>
+
+        <!-- Mode selector -->
+        <div class="mode-selector">
+          <button class="mode-btn active" data-mode="llm" onclick="switchEvalMode('llm')">Auto-generate from LLMs</button>
+          <button class="mode-btn" data-mode="paste" onclick="switchEvalMode('paste')">Paste outputs manually</button>
+        </div>
+
+        <!-- Shared: prompt + keywords -->
+        <div class="form-group">
+          <label for="eval-prompt">Task prompt</label>
+          <textarea id="eval-prompt" rows="3" placeholder="e.g. Explain the pros and cons of microservices vs monolithic architecture"></textarea>
         </div>
 
         <div class="form-group">
-          <label for="llm-prompt">What should the agents respond to?</label>
-          <textarea id="llm-prompt" rows="3" placeholder="e.g. Explain the pros and cons of microservices vs monolithic architecture"></textarea>
+          <label for="eval-keywords">Keywords to look for <span class="label-hint">(comma-separated)</span></label>
+          <input type="text" id="eval-keywords" placeholder="e.g. scalability, deployment, complexity, latency">
         </div>
 
-        <div class="form-group">
-          <label for="llm-keywords">Keywords to look for <span class="label-hint">(comma-separated)</span></label>
-          <input type="text" id="llm-keywords" placeholder="e.g. scalability, deployment, complexity, latency">
-        </div>
-
-        <div class="action-row">
-          <button class="btn-primary" onclick="runLLM()">Run LLM Evaluation</button>
-          <span id="llm-status" class="status-msg"></span>
-        </div>
-
-        <div id="llm-results" class="results-container" style="display:none;"></div>
-      </section>
-
-      <!-- Tab: Custom Test -->
-      <section id="tab-custom" class="tab-content">
-        <div class="tab-intro">
-          <p>Paste your own agent outputs and let the Trust Layer score them. Great for comparing responses you already have.</p>
-        </div>
-
-        <div class="form-group">
-          <label for="custom-prompt">Task description</label>
-          <textarea id="custom-prompt" rows="3" placeholder="Describe what the agents were asked to do..."></textarea>
-        </div>
-
-        <div class="form-group">
-          <label for="custom-keywords">Keywords to look for <span class="label-hint">(comma-separated)</span></label>
-          <input type="text" id="custom-keywords" placeholder="e.g. accuracy, efficiency, security">
-        </div>
-
-        <div class="form-group">
-          <label>Agent outputs</label>
-          <div id="candidates-list">
-            <div class="candidate-input">
-              <input type="text" placeholder="Agent name (e.g. GPT-4)" class="cand-agent-id">
-              <textarea rows="2" placeholder="Paste the agent's response here..." class="cand-output"></textarea>
+        <!-- LLM mode: provider info -->
+        <div id="eval-llm-section">
+          <div class="form-group">
+            <label>Available providers</label>
+            <div id="providers-status" class="providers-badge">
+              <span class="provider-tag">Loading...</span>
             </div>
-            <div class="candidate-input">
-              <input type="text" placeholder="Agent name (e.g. Claude)" class="cand-agent-id">
-              <textarea rows="2" placeholder="Paste the agent's response here..." class="cand-output"></textarea>
-            </div>
+            <p class="field-hint">The system will send your task to all available providers, generate responses, then score and rank them.</p>
           </div>
-          <button class="btn-ghost" onclick="addCandidate()">+ Add another agent</button>
+        </div>
+
+        <!-- Paste mode: agent outputs with dropdowns -->
+        <div id="eval-paste-section" style="display:none;">
+          <div class="form-group">
+            <label>Agent outputs</label>
+            <div id="candidates-list">
+              <div class="candidate-input">
+                <select class="cand-agent-select" onchange="onAgentSelect(this)">
+                  <option value="">Select an agent...</option>
+                </select>
+                <input type="text" placeholder="Or type a custom agent name" class="cand-agent-id" style="display:none;">
+                <textarea rows="2" placeholder="Paste the agent's response here..." class="cand-output"></textarea>
+              </div>
+              <div class="candidate-input">
+                <select class="cand-agent-select" onchange="onAgentSelect(this)">
+                  <option value="">Select an agent...</option>
+                </select>
+                <input type="text" placeholder="Or type a custom agent name" class="cand-agent-id" style="display:none;">
+                <textarea rows="2" placeholder="Paste the agent's response here..." class="cand-output"></textarea>
+              </div>
+            </div>
+            <button class="btn-ghost" onclick="addCandidate()">+ Add another agent</button>
+          </div>
         </div>
 
         <div class="action-row">
-          <button class="btn-primary" onclick="runCustom()">Run Evaluation</button>
-          <span id="custom-status" class="status-msg"></span>
+          <button id="eval-run-btn" class="btn-primary" onclick="runEvaluation()">Run Evaluation</button>
+          <span id="evaluate-status" class="status-msg"></span>
         </div>
 
-        <div id="custom-results" class="results-container" style="display:none;"></div>
+        <div id="evaluate-results" class="results-container" style="display:none;"></div>
       </section>
 
       <!-- Tab: History -->
