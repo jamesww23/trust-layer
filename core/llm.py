@@ -24,14 +24,14 @@ PROVIDERS = [
         "agent_id": "agent_claude",
         "agent_name": "Claude",
         "provider": "anthropic",
-        "model": "claude-3-5-haiku-20241022",
+        "model": "claude-haiku-4-5-20251001",
         "env_key": "ANTHROPIC_API_KEY",
     },
     {
         "agent_id": "agent_llama",
         "agent_name": "LLaMA",
         "provider": "groq",
-        "model": "llama3-70b-8192",
+        "model": "llama-3.3-70b-versatile",
         "env_key": "GROQ_API_KEY",
     },
 ]
