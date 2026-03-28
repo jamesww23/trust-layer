@@ -222,5 +222,12 @@ def apply_feedback(store, run_record, new_outcome):
         "overridden_at": datetime.now(timezone.utc).isoformat(),
     }
 
+    # Update profiles_after snapshot to reflect corrected winner state
+    updated_profile = store.lookup(winner_id)
+    run_record.profiles_after = [
+        updated_profile.to_dict() if p.get("agent_id") == winner_id else p
+        for p in run_record.profiles_after
+    ]
+
     store.update_run(run_record)
     return run_record

@@ -118,3 +118,62 @@ class TestApplyFeedback:
         # adjusted = (0.8182*11 - 1.0 + 0.0)/11 = 8.0/11 = 0.7273
         expected = round((0.8 * 10 + 0.0) / 11, 4)
         assert profile.success_rate == expected
+
+
+class TestFeedbackProfilesAfterConsistency:
+    """Regression: profiles_after must be updated when feedback overrides outcome."""
+
+    def test_profiles_after_reflects_corrected_winner_sr(self):
+        store, record = _make_store_and_run(original_outcome=True, sr=0.85, runs=20)
+
+        # Before feedback, profiles_after has the original post-run state
+        old_after = record.profiles_after
+        old_winner_sr = next(
+            p["success_rate"] for p in old_after if p.get("agent_id") == "agent_winner"
+        )
+
+        updated = apply_feedback(store, record, new_outcome=False)
+
+        # After feedback, profiles_after must match the corrected profile
+        new_winner_entry = next(
+            p for p in updated.profiles_after if p.get("agent_id") == "agent_winner"
+        )
+        live_profile = store.lookup("agent_winner")
+
+        assert new_winner_entry["success_rate"] == live_profile.success_rate
+        assert new_winner_entry["success_rate"] != old_winner_sr
+
+    def test_profiles_after_stored_in_run_record(self):
+        """The persisted run record must also have updated profiles_after."""
+        store, record = _make_store_and_run(original_outcome=True, sr=0.85, runs=20)
+        apply_feedback(store, record, new_outcome=False)
+
+        stored = store.get_run("run_fb_001")
+        live_profile = store.lookup("agent_winner")
+        stored_winner = next(
+            p for p in stored.profiles_after if p.get("agent_id") == "agent_winner"
+        )
+        assert stored_winner["success_rate"] == live_profile.success_rate
+
+    def test_loser_profiles_after_unchanged(self):
+        store, record = _make_store_and_run(original_outcome=True, sr=0.85, runs=20)
+        loser_before = next(
+            (p for p in record.profiles_after if p.get("agent_id") == "agent_loser"), None
+        )
+
+        updated = apply_feedback(store, record, new_outcome=False)
+        loser_after = next(
+            (p for p in updated.profiles_after if p.get("agent_id") == "agent_loser"), None
+        )
+
+        # Loser entry in profiles_after should be unchanged
+        if loser_before and loser_after:
+            assert loser_after["success_rate"] == loser_before["success_rate"]
+
+    def test_noop_does_not_modify_profiles_after(self):
+        store, record = _make_store_and_run(original_outcome=True, sr=0.85, runs=20)
+        original_after = [dict(p) for p in record.profiles_after]
+
+        apply_feedback(store, record, new_outcome=True)  # same outcome = noop
+
+        assert record.profiles_after == original_after

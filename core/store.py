@@ -99,6 +99,11 @@ class ReputationStore(ABC):
         """Clear queued submissions for a task."""
         ...
 
+    @abstractmethod
+    def clear_all_tasks(self) -> None:
+        """Wipe all stored tasks and queued submissions."""
+        ...
+
     def _default_profile(self, agent_id: str) -> AgentProfile:
         """Create a default profile for an unknown agent."""
         now = datetime.now(timezone.utc).isoformat()
@@ -183,6 +188,10 @@ class MemoryStore(ReputationStore):
 
     def clear_submissions(self, task_id: str) -> None:
         self._queues.pop(task_id, None)
+
+    def clear_all_tasks(self) -> None:
+        self._tasks.clear()
+        self._queues.clear()
 
     def is_empty(self) -> bool:
         return len(self._data) == 0
@@ -307,6 +316,12 @@ class RedisStore(ReputationStore):
 
     def clear_submissions(self, task_id: str) -> None:
         self._redis.delete(f"queue:{task_id}")
+
+    def clear_all_tasks(self) -> None:
+        for key in (self._redis.keys("task:*") or []):
+            self._redis.delete(key)
+        for key in (self._redis.keys("queue:*") or []):
+            self._redis.delete(key)
 
     def is_empty(self) -> bool:
         keys = self._redis.keys(f"{self.KEY_PREFIX}*")

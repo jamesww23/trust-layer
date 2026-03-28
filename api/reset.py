@@ -18,6 +18,7 @@ class handler(BaseHTTPRequestHandler):
             seed = load_seed_profiles()
             store.reset(seed)
             store.clear_runs()
+            store.clear_all_tasks()
 
             profiles = store.list_all()
 

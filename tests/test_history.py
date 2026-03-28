@@ -106,3 +106,62 @@ class TestMemoryStoreRuns:
         store.clear_runs()
         assert len(store.list_all()) == 1
         assert store.list_runs() == []
+
+
+class TestResetClearsAllState:
+    """Regression: reset must clear tasks and submissions, not just profiles/runs."""
+
+    def test_reset_clears_stored_tasks(self):
+        store = MemoryStore({"agent_a": AgentProfile("agent_a", "A")})
+        store.store_task("task_ext_1", {"prompt": "test", "keywords": []})
+        store.store_task("task_ext_2", {"prompt": "test2", "keywords": []})
+
+        store.reset({"agent_a": AgentProfile("agent_a", "A")})
+        store.clear_runs()
+        store.clear_all_tasks()
+
+        assert store.get_task("task_ext_1") is None
+        assert store.get_task("task_ext_2") is None
+
+    def test_reset_clears_queued_submissions(self):
+        store = MemoryStore({"agent_a": AgentProfile("agent_a", "A")})
+        store.queue_submission("task_1", {"agent_id": "bot1", "output_text": "hello"})
+        store.queue_submission("task_1", {"agent_id": "bot2", "output_text": "world"})
+        store.queue_submission("task_2", {"agent_id": "bot3", "output_text": "foo"})
+
+        store.clear_all_tasks()
+
+        assert store.get_submissions("task_1") == []
+        assert store.get_submissions("task_2") == []
+
+    def test_clear_all_tasks_does_not_affect_profiles_or_runs(self):
+        store = MemoryStore({"agent_a": AgentProfile("agent_a", "A")})
+        store.save_run(_sample_run("run_1"))
+        store.store_task("task_ext", {"prompt": "test"})
+
+        store.clear_all_tasks()
+
+        assert len(store.list_all()) == 1
+        assert store.get_run("run_1") is not None
+        assert store.get_task("task_ext") is None
+
+    def test_full_reset_sequence_clears_everything(self):
+        """Simulate exact reset flow: reset profiles + clear_runs + clear_all_tasks."""
+        store = MemoryStore({"agent_a": AgentProfile("agent_a", "A", success_rate=0.9, total_runs=50)})
+        store.save_run(_sample_run("run_1"))
+        store.store_task("task_ext", {"prompt": "test"})
+        store.queue_submission("task_ext", {"agent_id": "bot", "output_text": "hi"})
+
+        seed = {"agent_a": AgentProfile("agent_a", "A", success_rate=0.5, total_runs=0)}
+        store.reset(seed)
+        store.clear_runs()
+        store.clear_all_tasks()
+
+        # Profiles reset to seed
+        assert store.lookup("agent_a").success_rate == 0.5
+        assert store.lookup("agent_a").total_runs == 0
+        # Runs cleared
+        assert store.list_runs() == []
+        # Tasks and queues cleared
+        assert store.get_task("task_ext") is None
+        assert store.get_submissions("task_ext") == []
