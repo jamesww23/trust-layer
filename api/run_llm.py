@@ -66,14 +66,13 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             keywords = body.get("expected_keywords", [])
-            model = body.get("model", "gpt-4o-mini")
 
             # Build task
             task_id = f"llm_{uuid.uuid4().hex[:8]}"
             task = Task(task_id=task_id, prompt=prompt, expected_keywords=keywords)
 
             # Generate real LLM outputs
-            candidates = generate_candidates(prompt, task_id, model=model)
+            candidates = generate_candidates(prompt, task_id)
 
             # Snapshot profiles before
             profiles_before = [p.to_dict() for p in store.list_all()]
@@ -96,7 +95,6 @@ class handler(BaseHTTPRequestHandler):
             store.save_run(record)
 
             providers_used = [p["agent_id"] for p in get_available_providers()]
-            mode = "multi-provider" if len(providers_used) >= 2 else "persona-fallback"
 
             response = {
                 "run_id": record.run_id,
@@ -105,7 +103,6 @@ class handler(BaseHTTPRequestHandler):
                 "profiles_before": profiles_before,
                 "profiles_after": profiles_after,
                 "logs": logs,
-                "mode": mode,
                 "providers_used": providers_used,
             }
 

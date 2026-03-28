@@ -9,8 +9,6 @@ const DEFAULT_AGENTS = [
   { id: "agent_gpt4", name: "GPT-4" },
   { id: "agent_claude", name: "Claude" },
   { id: "agent_llama", name: "LLaMA" },
-  { id: "agent_gemini", name: "Gemini" },
-  { id: "agent_mistral", name: "Mistral" },
 ];
 
 // --- Init ---
