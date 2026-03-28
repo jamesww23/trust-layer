@@ -1,4 +1,4 @@
-"""POST /api/reset — Wipe all agents and re-seed."""
+"""GET /api/agents — Return all registered agents."""
 
 import json
 import sys
@@ -8,26 +8,23 @@ from http.server import BaseHTTPRequestHandler
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.store import RedisStore
-from core.fixtures import load_seed_agents
+from core.fixtures import seed_store
 
 
 class handler(BaseHTTPRequestHandler):
-    def do_POST(self):
+    def do_GET(self):
         try:
             store = RedisStore()
-            store.reset()
-
-            for agent in load_seed_agents():
-                store.register(agent)
+            seed_store(store)
 
             agents = store.list_all()
+            agents.sort(key=lambda a: -a.success_rate)
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(json.dumps({
-                "status": "reset",
                 "agents": [a.to_dict() for a in agents],
             }).encode())
 
@@ -41,6 +38,6 @@ class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()

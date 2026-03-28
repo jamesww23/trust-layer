@@ -1,5 +1,2 @@
 upstash-redis
-openai
-anthropic
-groq
 pytest

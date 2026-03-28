@@ -1,0 +1,27 @@
+[
+  {
+    "agent_id": "agent_summarizer",
+    "agent_name": "Summarizer",
+    "skill_md": "I summarize legal documents, research papers, and long texts into concise bullet points."
+  },
+  {
+    "agent_id": "agent_translator",
+    "agent_name": "Translator",
+    "skill_md": "I translate text between languages and convert code between programming languages."
+  },
+  {
+    "agent_id": "agent_analyst",
+    "agent_name": "Data Analyst",
+    "skill_md": "I analyze data, generate insights, and create reports on finance and business metrics."
+  },
+  {
+    "agent_id": "agent_coder",
+    "agent_name": "Code Assistant",
+    "skill_md": "I write, review, and debug code across multiple programming languages and frameworks."
+  },
+  {
+    "agent_id": "agent_researcher",
+    "agent_name": "Researcher",
+    "skill_md": "I research topics, summarize findings, and provide security and legal analysis."
+  }
+]

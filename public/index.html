@@ -3,120 +3,79 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trust Layer — AI Agent Reputation System</title>
+  <title>Agentic Reputation Infrastructure Layer</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
-  <!-- Hero -->
   <header>
-    <h1>Trust Layer</h1>
-    <p class="tagline">Which AI agent should you trust? Run a task, compare outputs, and let reputation decide.</p>
-    <p class="description">Every time an agent wins an evaluation, its reputation updates. Over time, the system learns which agents deliver the best results for each type of task.</p>
+    <h1>Agentic Reputation Layer</h1>
+    <p class="tagline">Agent-to-agent interactions build shared trust over time.</p>
+    <p class="description">Agents register skills, discover collaborators, delegate tasks, and provide feedback. Reputation evolves based on outcomes.</p>
   </header>
 
   <div class="layout">
 
-    <!-- Left: Main Content -->
+    <!-- Left: Agent Registry -->
     <div class="main-content">
 
-      <!-- Tabs -->
-      <nav class="tabs">
-        <button class="tab active" data-tab="demo" onclick="switchTab('demo')">Try a Demo</button>
-        <button class="tab" data-tab="evaluate" onclick="switchTab('evaluate')">Evaluate Agents</button>
-        <button class="tab" data-tab="history" onclick="switchTab('history')">History</button>
-      </nav>
-
-      <!-- Tab: Demo -->
-      <section id="tab-demo" class="tab-content active">
-        <div class="tab-intro">
-          <p>Pick a scenario and run the evaluation. The system scores each agent's output based on <strong>keyword relevancy</strong> and <strong>historical reputation</strong>, then picks a winner.</p>
+      <section class="section">
+        <div class="section-header">
+          <h2>Agent Registry</h2>
+          <button class="btn-ghost-small" onclick="resetAll()" title="Reset all agents">Reset</button>
         </div>
-
-        <div class="form-group">
-          <label for="scenario-select">Scenario</label>
-          <select id="scenario-select" onchange="onScenarioChange()">
-            <option value="">Loading...</option>
-          </select>
+        <div id="agent-list">
+          <p class="empty-state">Loading agents...</p>
         </div>
-
-        <div id="demo-task-preview" class="preview-card">
-          <div class="preview-label">Task</div>
-          <div id="demo-task-prompt" class="preview-text">Loading...</div>
-          <div class="preview-label" style="margin-top:12px">Expected Keywords</div>
-          <div id="demo-task-keywords" class="preview-keywords"></div>
-        </div>
-
-        <div id="demo-candidates-preview" class="preview-card">
-          <div class="preview-label">Agent Responses</div>
-          <div id="demo-candidates-list" class="candidates-preview"></div>
-        </div>
-
-        <div class="action-row">
-          <button id="run-demo-btn" class="btn-primary" onclick="runDemo()">Run Evaluation</button>
-          <span id="demo-status" class="status-msg"></span>
-        </div>
-
-        <div id="demo-results" class="results-container" style="display:none;"></div>
       </section>
 
-      <!-- Tab: Evaluate Agents -->
-      <section id="tab-evaluate" class="tab-content">
-        <div class="tab-intro">
-          <p>Enter a task and the system will automatically send it to multiple AI agents (GPT-4, Claude, LLaMA), collect their responses, then score and rank them.</p>
-          <div id="providers-status" class="providers-badge"></div>
-        </div>
-
-        <div class="form-group">
-          <label for="eval-prompt">What should the agents respond to?</label>
-          <textarea id="eval-prompt" rows="3" placeholder="e.g. Explain the pros and cons of microservices vs monolithic architecture"></textarea>
-        </div>
-
-        <div class="form-group">
-          <button class="keywords-toggle" onclick="toggleKeywords()">+ Add keywords <span class="label-hint">(optional — helps score relevancy)</span></button>
-          <div id="keywords-section" style="display:none;">
-            <input type="text" id="eval-keywords" placeholder="e.g. scalability, deployment, complexity, latency">
+      <section class="section">
+        <h2>Register New Agent</h2>
+        <div class="register-form">
+          <div class="form-row">
+            <input type="text" id="reg-id" placeholder="agent_id (e.g. agent_writer)">
+            <input type="text" id="reg-name" placeholder="Display name (e.g. Writer)">
+          </div>
+          <textarea id="reg-skill" rows="2" placeholder="skill_md — Describe what this agent can do..."></textarea>
+          <div class="action-row">
+            <button class="btn-primary" onclick="registerAgent()">Register Agent</button>
+            <span id="register-status" class="status-msg"></span>
           </div>
         </div>
-
-        <div class="action-row">
-          <button id="eval-run-btn" class="btn-primary" onclick="runLLMEval()">Evaluate Agents</button>
-          <span id="evaluate-status" class="status-msg"></span>
-        </div>
-
-        <div id="evaluate-results" class="results-container" style="display:none;"></div>
       </section>
 
-      <!-- Tab: History -->
-      <section id="tab-history" class="tab-content">
-        <div class="tab-intro">
-          <p>Every evaluation is recorded. See how agent reputations have changed over time.</p>
+      <section class="section">
+        <h2>Run Simulation</h2>
+        <p class="section-desc">Simulate multiple rounds of agent-to-agent task delegation. Each round: a requester discovers providers by skill, delegates a task, evaluates the outcome, and updates the provider's trust score.</p>
+        <div class="action-row">
+          <label for="sim-rounds">Rounds:</label>
+          <input type="number" id="sim-rounds" value="10" min="1" max="50" style="width:80px">
+          <button class="btn-primary" id="sim-btn" onclick="runSimulation()">Run Simulation</button>
+          <span id="sim-status" class="status-msg"></span>
         </div>
-        <div id="history-list">
-          <p class="empty-state">Loading history...</p>
-        </div>
+      </section>
+
+      <section class="section" id="results-section" style="display:none;">
+        <h2>Simulation Results</h2>
+        <div id="sim-results"></div>
       </section>
 
     </div>
 
-    <!-- Right: Leaderboard Sidebar -->
+    <!-- Right: Trust Rankings -->
     <aside class="sidebar">
       <div class="leaderboard">
-        <div class="leaderboard-header">
-          <h2>Agent Leaderboard</h2>
-          <button class="btn-ghost-small" onclick="resetState()" title="Reset all reputations">Reset</button>
-        </div>
-        <div id="leaderboard-body">
+        <h2>Trust Rankings</h2>
+        <div id="rankings-body">
           <p class="empty-state">Loading...</p>
         </div>
-        <div class="scoring-note" id="scoring-note"></div>
       </div>
     </aside>
 
   </div>
 
   <footer>
-    <p>Trust Layer MVP — MIT MAS.664 AI Studio</p>
+    <p>Agentic Reputation Infrastructure Layer — MIT MAS.664 AI Studio</p>
   </footer>
 
   <script src="/app.js"></script>

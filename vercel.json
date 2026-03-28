@@ -11,17 +11,10 @@
     }
   ],
   "routes": [
-    { "src": "/api/health", "dest": "/api/health.py" },
-    { "src": "/api/state", "dest": "/api/state.py" },
-    { "src": "/api/run-demo", "dest": "/api/run_demo.py" },
-    { "src": "/api/run-custom", "dest": "/api/run_custom.py" },
-    { "src": "/api/run-llm", "dest": "/api/run_llm.py" },
-    { "src": "/api/run-batch", "dest": "/api/run_batch.py" },
-    { "src": "/api/runs", "dest": "/api/runs.py" },
-    { "src": "/api/feedback", "dest": "/api/feedback.py" },
-    { "src": "/api/create-task", "dest": "/api/create_task.py" },
-    { "src": "/api/submit-output", "dest": "/api/submit_output.py" },
-    { "src": "/api/evaluate-task", "dest": "/api/evaluate_task.py" },
+    { "src": "/api/register-agent", "dest": "/api/register_agent.py" },
+    { "src": "/api/agents", "dest": "/api/agents.py" },
+    { "src": "/api/discover", "dest": "/api/discover.py" },
+    { "src": "/api/run-simulation", "dest": "/api/run_simulation.py" },
     { "src": "/api/reset", "dest": "/api/reset.py" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]

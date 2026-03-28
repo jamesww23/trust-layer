@@ -1,32 +1,19 @@
-"""Trust Layer Core Engine.
+"""Agentic Reputation Infrastructure Layer — Core Engine."""
 
-Public interface for the Trust Layer MVP.
-"""
-
-from core.models import AgentProfile, Task, Candidate, TaskResult, RunRecord, ScoringConfig
-from core.scoring import ScoringEngine
-from core.store import ReputationStore, MemoryStore, RedisStore
-from core.controller import TrustController, build_run_record, apply_feedback
-from core.config import load_scoring_config
-from core.fixtures import load_demo_task, load_seed_profiles, list_scenarios, load_scenario
+from core.models import Agent, Interaction
+from core.store import AgentStore, MemoryStore, RedisStore
+from core.controller import run_simulation, update_trust, determine_outcome
+from core.fixtures import load_seed_agents, seed_store
 
 __all__ = [
-    "AgentProfile",
-    "Task",
-    "Candidate",
-    "TaskResult",
-    "RunRecord",
-    "ScoringConfig",
-    "ScoringEngine",
-    "ReputationStore",
+    "Agent",
+    "Interaction",
+    "AgentStore",
     "MemoryStore",
     "RedisStore",
-    "TrustController",
-    "build_run_record",
-    "apply_feedback",
-    "load_scoring_config",
-    "load_demo_task",
-    "load_seed_profiles",
-    "list_scenarios",
-    "load_scenario",
+    "run_simulation",
+    "update_trust",
+    "determine_outcome",
+    "load_seed_agents",
+    "seed_store",
 ]

@@ -1,17 +1,23 @@
-"""Data models for Trust Layer MVP."""
+"""Data models for Agentic Reputation Infrastructure Layer."""
 
 from datetime import datetime, timezone
 
 
-class AgentProfile:
-    """Persistent agent reputation profile."""
+class Agent:
+    """An agent registered in the reputation layer."""
 
-    def __init__(self, agent_id: str, agent_name: str, version: str = "1.0",
+    def __init__(self, agent_id: str, agent_name: str, skill_md: str,
                  success_rate: float = 0.5, total_runs: int = 0,
                  created_at: str = None, updated_at: str = None):
+        if not agent_id or not agent_id.strip():
+            raise ValueError("agent_id cannot be empty")
+        if not agent_name or not agent_name.strip():
+            raise ValueError("agent_name cannot be empty")
+        if not skill_md or not skill_md.strip():
+            raise ValueError("skill_md cannot be empty")
         self.agent_id = agent_id
         self.agent_name = agent_name
-        self.version = version
+        self.skill_md = skill_md
         self.success_rate = success_rate
         self.total_runs = total_runs
         now = datetime.now(timezone.utc).isoformat()
@@ -22,7 +28,7 @@ class AgentProfile:
         return {
             "agent_id": self.agent_id,
             "agent_name": self.agent_name,
-            "version": self.version,
+            "skill_md": self.skill_md,
             "success_rate": self.success_rate,
             "total_runs": self.total_runs,
             "created_at": self.created_at,
@@ -30,11 +36,11 @@ class AgentProfile:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "AgentProfile":
+    def from_dict(cls, data: dict) -> "Agent":
         return cls(
             agent_id=data["agent_id"],
             agent_name=data["agent_name"],
-            version=data.get("version", "1.0"),
+            skill_md=data.get("skill_md", ""),
             success_rate=data.get("success_rate", 0.5),
             total_runs=data.get("total_runs", 0),
             created_at=data.get("created_at"),
@@ -42,187 +48,29 @@ class AgentProfile:
         )
 
     def __repr__(self):
-        return (f"AgentProfile(id={self.agent_id!r}, name={self.agent_name!r}, "
+        return (f"Agent(id={self.agent_id!r}, name={self.agent_name!r}, "
                 f"success_rate={self.success_rate}, total_runs={self.total_runs})")
 
 
-class Task:
-    """A task with expected keywords for relevancy scoring."""
+class Interaction:
+    """Record of a single agent-to-agent interaction."""
 
-    def __init__(self, task_id: str, prompt: str, expected_keywords: list):
-        if not task_id or not task_id.strip():
-            raise ValueError("task_id cannot be empty")
-        if not prompt or not prompt.strip():
-            raise ValueError("prompt cannot be empty")
-        if expected_keywords is None:
-            expected_keywords = []
-        if not isinstance(expected_keywords, list):
-            raise ValueError("expected_keywords must be a list")
-        for i, kw in enumerate(expected_keywords):
-            if not isinstance(kw, str):
-                raise ValueError(f"expected_keywords[{i}] must be a string, got {type(kw).__name__}")
-        self.task_id = task_id
-        self.prompt = prompt
-        self.expected_keywords = expected_keywords
-
-    def to_dict(self) -> dict:
-        return {
-            "task_id": self.task_id,
-            "prompt": self.prompt,
-            "expected_keywords": self.expected_keywords,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "Task":
-        return cls(
-            task_id=data["task_id"],
-            prompt=data["prompt"],
-            expected_keywords=data.get("expected_keywords", []),
-        )
-
-
-class Candidate:
-    """A pre-supplied candidate output from an agent."""
-
-    def __init__(self, output_id: str, task_id: str, agent_id: str,
-                 output_text: str, latency_ms: int = 0, timestamp: str = None):
-        self.output_id = output_id
-        self.task_id = task_id
-        self.agent_id = agent_id
-        self.output_text = output_text
-        self.latency_ms = latency_ms
-        self.timestamp = timestamp or datetime.now(timezone.utc).isoformat()
-
-    def to_dict(self) -> dict:
-        return {
-            "output_id": self.output_id,
-            "task_id": self.task_id,
-            "agent_id": self.agent_id,
-            "output_text": self.output_text,
-            "latency_ms": self.latency_ms,
-            "timestamp": self.timestamp,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "Candidate":
-        return cls(
-            output_id=data["output_id"],
-            task_id=data["task_id"],
-            agent_id=data["agent_id"],
-            output_text=data["output_text"],
-            latency_ms=data.get("latency_ms", 0),
-            timestamp=data.get("timestamp"),
-        )
-
-
-class TaskResult:
-    """Result of a Trust Layer evaluation run."""
-
-    def __init__(self, task_id: str, winner_agent_id: str, winner_score: float,
-                 ranking: list, explanation: str, outcome: bool,
-                 created_at: str = None):
-        self.task_id = task_id
-        self.winner_agent_id = winner_agent_id
-        self.winner_score = winner_score
-        self.ranking = ranking
-        self.explanation = explanation
+    def __init__(self, round_num: int, requester_agent_id: str,
+                 provider_agent_id: str, outcome: bool,
+                 trust_before: float, trust_after: float):
+        self.round_num = round_num
+        self.requester_agent_id = requester_agent_id
+        self.provider_agent_id = provider_agent_id
         self.outcome = outcome
-        self.created_at = created_at or datetime.now(timezone.utc).isoformat()
+        self.trust_before = trust_before
+        self.trust_after = trust_after
 
     def to_dict(self) -> dict:
         return {
-            "task_id": self.task_id,
-            "winner_agent_id": self.winner_agent_id,
-            "winner_score": self.winner_score,
-            "ranking": self.ranking,
-            "explanation": self.explanation,
+            "round": self.round_num,
+            "requester": self.requester_agent_id,
+            "provider": self.provider_agent_id,
             "outcome": self.outcome,
-            "created_at": self.created_at,
+            "trust_before": self.trust_before,
+            "trust_after": self.trust_after,
         }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "TaskResult":
-        return cls(
-            task_id=data["task_id"],
-            winner_agent_id=data["winner_agent_id"],
-            winner_score=data["winner_score"],
-            ranking=data["ranking"],
-            explanation=data["explanation"],
-            outcome=data["outcome"],
-            created_at=data.get("created_at"),
-        )
-
-
-class RunRecord:
-    """Persistent record of a single evaluation run."""
-
-    def __init__(self, run_id: str, task: dict, candidates: list,
-                 result: dict, logs: list, profiles_before: list,
-                 profiles_after: list, source: str = "demo",
-                 feedback_override: dict = None, created_at: str = None):
-        self.run_id = run_id
-        self.task = task
-        self.candidates = candidates
-        self.result = result
-        self.logs = logs
-        self.profiles_before = profiles_before
-        self.profiles_after = profiles_after
-        self.source = source
-        self.feedback_override = feedback_override
-        self.created_at = created_at or datetime.now(timezone.utc).isoformat()
-
-    def to_dict(self) -> dict:
-        return {
-            "run_id": self.run_id,
-            "task": self.task,
-            "candidates": self.candidates,
-            "result": self.result,
-            "logs": self.logs,
-            "profiles_before": self.profiles_before,
-            "profiles_after": self.profiles_after,
-            "source": self.source,
-            "feedback_override": self.feedback_override,
-            "created_at": self.created_at,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "RunRecord":
-        return cls(
-            run_id=data["run_id"],
-            task=data["task"],
-            candidates=data["candidates"],
-            result=data["result"],
-            logs=data["logs"],
-            profiles_before=data["profiles_before"],
-            profiles_after=data["profiles_after"],
-            source=data.get("source", "demo"),
-            feedback_override=data.get("feedback_override"),
-            created_at=data.get("created_at"),
-        )
-
-
-class ScoringConfig:
-    """Weights for trust score computation."""
-
-    def __init__(self, w_reputation: float = 0.6, w_relevancy: float = 0.4):
-        total = w_reputation + w_relevancy
-        if abs(total - 1.0) > 1e-6:
-            raise ValueError(
-                f"Scoring weights must sum to 1.0, got {total} "
-                f"(w_reputation={w_reputation}, w_relevancy={w_relevancy})"
-            )
-        self.w_reputation = w_reputation
-        self.w_relevancy = w_relevancy
-
-    def to_dict(self) -> dict:
-        return {
-            "w_reputation": self.w_reputation,
-            "w_relevancy": self.w_relevancy,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "ScoringConfig":
-        return cls(
-            w_reputation=data["w_reputation"],
-            w_relevancy=data["w_relevancy"],
-        )
