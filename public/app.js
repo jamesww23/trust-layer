@@ -4,7 +4,10 @@ const API = window.location.origin;
 
 document.addEventListener("DOMContentLoaded", loadAgents);
 
-// --- Load Agents ---
+// ============================================================
+// 1. LOAD & DISPLAY AGENTS
+// ============================================================
+
 async function loadAgents() {
   try {
     const res = await fetch(API + "/api/agents");
@@ -12,17 +15,17 @@ async function loadAgents() {
     const data = await res.json();
     renderAgentList(data.agents);
     renderRankings(data.agents);
+    populateRateDropdown(data.agents);
   } catch (err) {
     document.getElementById("agent-list").innerHTML =
       '<p class="empty-state">Error loading agents: ' + esc(err.message) + '</p>';
   }
 }
 
-// --- Agent Cards ---
 function renderAgentList(agents) {
   const el = document.getElementById("agent-list");
   if (!agents || agents.length === 0) {
-    el.innerHTML = '<p class="empty-state">No agents registered.</p>';
+    el.innerHTML = '<p class="empty-state">No agents registered yet. Be the first!</p>';
     return;
   }
   el.innerHTML = agents.map(a => {
@@ -52,7 +55,6 @@ function renderAgentList(agents) {
   }).join("");
 }
 
-// --- Simple markdown-to-HTML for skill_md ---
 function renderSkillMd(md) {
   if (!md) return "";
   return esc(md)
@@ -64,7 +66,10 @@ function renderSkillMd(md) {
     .trim();
 }
 
-// --- Leaderboard Sidebar ---
+// ============================================================
+// 2. LEADERBOARD
+// ============================================================
+
 function renderRankings(agents) {
   const el = document.getElementById("rankings-body");
   if (!agents || agents.length === 0) {
@@ -96,7 +101,157 @@ function renderRankings(agents) {
   }).join("");
 }
 
-// --- Run Simulation ---
+// ============================================================
+// 3. REGISTER A NEW AGENT
+// ============================================================
+
+function copyPrompt() {
+  const text = document.getElementById("reg-prompt").textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector(".btn-copy");
+    btn.textContent = "Copied!";
+    setTimeout(() => { btn.textContent = "Copy prompt"; }, 2000);
+  });
+}
+
+async function registerAgent() {
+  const status = document.getElementById("reg-status");
+  const textarea = document.getElementById("reg-json");
+  const raw = textarea.value.trim();
+
+  if (!raw) {
+    status.textContent = "Paste the agent's JSON response first.";
+    return;
+  }
+
+  let body;
+  try {
+    body = JSON.parse(raw);
+  } catch (e) {
+    status.textContent = "Invalid JSON. Make sure you pasted the full response.";
+    return;
+  }
+
+  if (!body.agent_id || !body.agent_name || !body.skill_md) {
+    status.textContent = "Missing required fields: agent_id, agent_name, skill_md";
+    return;
+  }
+
+  status.textContent = "Registering...";
+  try {
+    const res = await fetch(API + "/api/register-agent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Registration failed");
+    status.textContent = body.agent_name + " registered successfully!";
+    textarea.value = "";
+    loadAgents();
+  } catch (err) {
+    status.textContent = "Error: " + err.message;
+  }
+}
+
+// ============================================================
+// 4. FIND AN AGENT (Discovery)
+// ============================================================
+
+async function discoverAgents() {
+  const keyword = document.getElementById("discover-keyword").value.trim();
+  const status = document.getElementById("discover-status");
+  const resultsEl = document.getElementById("discover-results");
+
+  if (!keyword) {
+    status.textContent = "Type a skill keyword first.";
+    return;
+  }
+
+  status.textContent = "Searching...";
+  try {
+    const res = await fetch(API + "/api/discover?keyword=" + encodeURIComponent(keyword));
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Search failed");
+
+    const agents = data.results || data.agents || [];
+    status.textContent = "";
+
+    if (agents.length === 0) {
+      resultsEl.innerHTML = '<p class="empty-state">No agents found for "' + esc(keyword) + '". Try: code, translate, data, summarize, research</p>';
+      return;
+    }
+
+    resultsEl.innerHTML = '<p class="section-desc" style="margin-bottom:8px;">Found ' + agents.length + ' agent(s) for "' + esc(keyword) + '":</p>' +
+      agents.map(a => `
+        <div class="discover-card">
+          <div class="discover-header">
+            <strong>${esc(a.agent_name || a.agent_id)}</strong>
+            <span class="discover-trust">${((a.trust_score || a.success_rate || 0.5) * 100).toFixed(1)}% trust</span>
+          </div>
+          <div class="discover-skill">${esc((a.skill_md || '').substring(0, 150))}${(a.skill_md || '').length > 150 ? '...' : ''}</div>
+        </div>
+      `).join("");
+  } catch (err) {
+    status.textContent = "Error: " + err.message;
+    resultsEl.innerHTML = "";
+  }
+}
+
+// ============================================================
+// 5. RATE AN AGENT (Feedback)
+// ============================================================
+
+function populateRateDropdown(agents) {
+  const select = document.getElementById("rate-agent");
+  if (!select) return;
+  // Keep the first "Select agent..." option
+  select.innerHTML = '<option value="">Select agent...</option>';
+  if (!agents) return;
+  const sorted = [...agents].sort((a, b) => a.agent_name.localeCompare(b.agent_name));
+  for (const a of sorted) {
+    const opt = document.createElement("option");
+    opt.value = a.agent_id;
+    opt.textContent = a.agent_name + " (" + (a.success_rate * 100).toFixed(0) + "% trust)";
+    select.appendChild(opt);
+  }
+}
+
+async function submitRating(score) {
+  const select = document.getElementById("rate-agent");
+  const status = document.getElementById("rate-status");
+  const agentId = select.value;
+
+  if (!agentId) {
+    status.textContent = "Select an agent first.";
+    return;
+  }
+
+  status.textContent = "Submitting rating...";
+  try {
+    const res = await fetch(API + "/api/submit-feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ agent_id: agentId, score: score }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Rating failed");
+
+    const newTrust = (data.agent.success_rate * 100).toFixed(1);
+    const label = score >= 0.8 ? "positive" : score <= 0.4 ? "negative" : "neutral";
+    status.textContent = "Rated! " + data.agent.agent_name + " now has " + newTrust + "% trust.";
+
+    // Refresh the page data
+    loadAgents();
+  } catch (err) {
+    status.textContent = "Error: " + err.message;
+  }
+}
+
+// ============================================================
+// 6. SIMULATE MANY ROUNDS
+// ============================================================
+
 async function runSimulation() {
   const btn = document.getElementById("sim-btn");
   const status = document.getElementById("sim-status");
@@ -119,6 +274,7 @@ async function runSimulation() {
     renderSimResults(data);
     renderRankings(data.final_agents);
     renderAgentList(data.final_agents);
+    populateRateDropdown(data.final_agents);
     status.textContent = "";
   } catch (err) {
     status.textContent = "Error: " + err.message;
@@ -137,7 +293,7 @@ function renderSimResults(data) {
     : "30%";
 
   let html = `
-    <p class="results-summary">${data.rounds} rounds completed. Agents with trust below ${thresholdPct} were blocked from being chosen.</p>
+    <p class="results-summary">${data.rounds} rounds completed. Agents with trust below ${thresholdPct} were blocked.</p>
     <table class="sim-table">
       <thead>
         <tr>
@@ -198,7 +354,6 @@ function renderSimResults(data) {
   }
   html += "</tbody></table>";
 
-  // Final rankings
   html += '<h3 class="final-title">Final Standings</h3>';
   html += '<table class="sim-table"><thead><tr><th>#</th><th>Agent</th><th>Trust</th><th>Tasks done</th><th>Times blocked</th></tr></thead><tbody>';
   data.final_agents.forEach((a, i) => {
@@ -221,70 +376,22 @@ function renderSimResults(data) {
   section.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
-// --- Copy Registration Prompt ---
-function copyPrompt() {
-  const text = document.getElementById("reg-prompt").textContent;
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.querySelector(".btn-copy");
-    btn.textContent = "Copied!";
-    setTimeout(() => { btn.textContent = "Copy prompt"; }, 2000);
-  });
-}
+// ============================================================
+// RESET & HELPERS
+// ============================================================
 
-// --- Register Agent from JSON ---
-async function registerAgent() {
-  const status = document.getElementById("reg-status");
-  const textarea = document.getElementById("reg-json");
-  const raw = textarea.value.trim();
-
-  if (!raw) {
-    status.textContent = "Paste the agent's JSON response first.";
-    return;
-  }
-
-  let body;
-  try {
-    body = JSON.parse(raw);
-  } catch (e) {
-    status.textContent = "Invalid JSON. Make sure you pasted the full response.";
-    return;
-  }
-
-  if (!body.agent_id || !body.agent_name || !body.skill_md) {
-    status.textContent = "Missing required fields: agent_id, agent_name, skill_md";
-    return;
-  }
-
-  status.textContent = "Registering...";
-  try {
-    const res = await fetch(API + "/api/register-agent", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Registration failed");
-    status.textContent = body.agent_name + " registered!";
-    textarea.value = "";
-    loadAgents();
-  } catch (err) {
-    status.textContent = "Error: " + err.message;
-  }
-}
-
-// --- Reset ---
 async function resetAll() {
   try {
     const res = await fetch(API + "/api/reset", { method: "POST" });
     if (!res.ok) throw new Error("Reset failed");
     document.getElementById("results-section").style.display = "none";
+    document.getElementById("discover-results").innerHTML = "";
     loadAgents();
   } catch (err) {
     console.error("Reset error:", err);
   }
 }
 
-// --- Helpers ---
 function esc(str) {
   if (str == null) return "";
   const div = document.createElement("div");
