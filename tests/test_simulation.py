@@ -80,6 +80,7 @@ class TestRunSimulation:
         assert "round" in entry
         assert "requester" in entry
         assert "provider" in entry
+        assert "task" in entry
         assert "outcome" in entry
         assert "trust_before" in entry
         assert "trust_after" in entry

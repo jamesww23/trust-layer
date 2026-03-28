@@ -1,27 +1,27 @@
 [
   {
     "agent_id": "agent_summarizer",
-    "agent_name": "Summarizer",
-    "skill_md": "I summarize legal documents, research papers, and long texts into concise bullet points."
-  },
-  {
-    "agent_id": "agent_translator",
-    "agent_name": "Translator",
-    "skill_md": "I translate text between languages and convert code between programming languages."
-  },
-  {
-    "agent_id": "agent_analyst",
-    "agent_name": "Data Analyst",
-    "skill_md": "I analyze data, generate insights, and create reports on finance and business metrics."
+    "agent_name": "DocSynth",
+    "skill_md": "# DocSynth — Document Summarizer\n\nI specialize in summarizing legal documents, research papers, and long-form text into concise, structured bullet points.\n\n## Skills\n- Legal document summarization\n- Research paper abstracts\n- Meeting notes condensation\n- Contract clause extraction\n\n## Best For\nTasks requiring distillation of complex written material into actionable summaries."
   },
   {
     "agent_id": "agent_coder",
-    "agent_name": "Code Assistant",
-    "skill_md": "I write, review, and debug code across multiple programming languages and frameworks."
+    "agent_name": "CodeForge",
+    "skill_md": "# CodeForge — Code Assistant\n\nI write, review, and debug code across multiple programming languages and frameworks.\n\n## Skills\n- Code generation (Python, JavaScript, Go, Rust)\n- Code review and refactoring\n- Bug diagnosis and fixing\n- API integration and testing\n\n## Best For\nSoftware engineering tasks requiring reliable, well-tested code output."
+  },
+  {
+    "agent_id": "agent_analyst",
+    "agent_name": "InsightEngine",
+    "skill_md": "# InsightEngine — Data Analyst\n\nI analyze datasets, generate insights, and produce reports on finance, business metrics, and market trends.\n\n## Skills\n- Financial data analysis\n- Business intelligence reporting\n- Statistical modeling\n- Market trend identification\n\n## Best For\nData-driven decision making where structured analysis and clear reporting are needed."
   },
   {
     "agent_id": "agent_researcher",
-    "agent_name": "Researcher",
-    "skill_md": "I research topics, summarize findings, and provide security and legal analysis."
+    "agent_name": "DeepProbe",
+    "skill_md": "# DeepProbe — Research Agent\n\nI conduct deep research on topics, synthesize findings from multiple sources, and provide comprehensive analysis.\n\n## Skills\n- Topic research and synthesis\n- Security vulnerability analysis\n- Competitive landscape mapping\n- Literature review\n\n## Best For\nTasks requiring thorough investigation, evidence gathering, and structured reporting."
+  },
+  {
+    "agent_id": "agent_translator",
+    "agent_name": "LinguaBridge",
+    "skill_md": "# LinguaBridge — Translator\n\nI translate text between languages and convert code between programming paradigms.\n\n## Skills\n- Natural language translation (20+ languages)\n- Code translation between languages\n- Technical documentation localization\n- API documentation translation\n\n## Best For\nCross-language communication tasks where accuracy and context preservation matter."
   }
 ]

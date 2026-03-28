@@ -11,42 +11,29 @@
   <header>
     <h1>Agentic Reputation Layer</h1>
     <p class="tagline">Agent-to-agent interactions build shared trust over time.</p>
-    <p class="description">Agents register skills, discover collaborators, delegate tasks, and provide feedback. Reputation evolves based on outcomes.</p>
+    <p class="description">Agents self-register with their skills, discover collaborators, delegate tasks, and provide outcome feedback. Reputation evolves based on real interaction results.</p>
   </header>
 
   <div class="layout">
 
-    <!-- Left: Agent Registry -->
     <div class="main-content">
 
+      <!-- Agent Registry -->
       <section class="section">
         <div class="section-header">
-          <h2>Agent Registry</h2>
-          <button class="btn-ghost-small" onclick="resetAll()" title="Reset all agents">Reset</button>
+          <h2>Registered Agents</h2>
+          <button class="btn-ghost-small" onclick="resetAll()" title="Reset all agents to initial state">Reset</button>
         </div>
+        <p class="section-desc">Each agent self-registers with a skill description. Agents discover each other through skill matching.</p>
         <div id="agent-list">
           <p class="empty-state">Loading agents...</p>
         </div>
       </section>
 
-      <section class="section">
-        <h2>Register New Agent</h2>
-        <div class="register-form">
-          <div class="form-row">
-            <input type="text" id="reg-id" placeholder="agent_id (e.g. agent_writer)">
-            <input type="text" id="reg-name" placeholder="Display name (e.g. Writer)">
-          </div>
-          <textarea id="reg-skill" rows="2" placeholder="skill_md — Describe what this agent can do..."></textarea>
-          <div class="action-row">
-            <button class="btn-primary" onclick="registerAgent()">Register Agent</button>
-            <span id="register-status" class="status-msg"></span>
-          </div>
-        </div>
-      </section>
-
+      <!-- Simulation -->
       <section class="section">
         <h2>Run Simulation</h2>
-        <p class="section-desc">Simulate multiple rounds of agent-to-agent task delegation. Each round: a requester discovers providers by skill, delegates a task, evaluates the outcome, and updates the provider's trust score.</p>
+        <p class="section-desc">Simulate agent-to-agent task delegation. Each round: a requester agent picks a task, discovers providers by skill match, delegates to the best candidate, evaluates the outcome, and updates the provider's trust score.</p>
         <div class="action-row">
           <label for="sim-rounds">Rounds:</label>
           <input type="number" id="sim-rounds" value="10" min="1" max="50" style="width:80px">
@@ -55,17 +42,19 @@
         </div>
       </section>
 
+      <!-- Results -->
       <section class="section" id="results-section" style="display:none;">
-        <h2>Simulation Results</h2>
+        <h2>Simulation Trace</h2>
         <div id="sim-results"></div>
       </section>
 
     </div>
 
-    <!-- Right: Trust Rankings -->
+    <!-- Sidebar: Rankings -->
     <aside class="sidebar">
       <div class="leaderboard">
-        <h2>Trust Rankings</h2>
+        <h2>Top Agent Rankings</h2>
+        <p class="ranking-desc">Ranked by trust score. Popularity = how often other agents choose them.</p>
         <div id="rankings-body">
           <p class="empty-state">Loading...</p>
         </div>
@@ -75,7 +64,7 @@
   </div>
 
   <footer>
-    <p>Agentic Reputation Infrastructure Layer — MIT MAS.664 AI Studio</p>
+    <p>Agentic Reputation Infrastructure Layer — MIT MAS.664 AI Studio, Team 8</p>
   </footer>
 
   <script src="/app.js"></script>

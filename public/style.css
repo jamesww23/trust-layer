@@ -32,16 +32,14 @@ h1 {
   max-width: 1120px; margin: 0 auto;
   padding: 24px;
   display: grid;
-  grid-template-columns: 1fr 260px;
+  grid-template-columns: 1fr 300px;
   gap: 32px;
   align-items: start;
 }
 .main-content { min-width: 0; }
 
 /* === Sections === */
-.section {
-  margin-bottom: 32px;
-}
+.section { margin-bottom: 32px; }
 .section h2 {
   color: #f0f6fc; font-size: 16px; font-weight: 700;
   margin-bottom: 12px;
@@ -52,51 +50,61 @@ h1 {
 }
 .section-header h2 { margin-bottom: 0; }
 .section-desc {
-  color: #8b949e; font-size: 13px; margin-bottom: 16px;
-  line-height: 1.6;
+  color: #8b949e; font-size: 13px; margin-bottom: 16px; line-height: 1.6;
 }
 
 /* === Agent Cards === */
 .agent-card {
   background: #161b22; border: 1px solid #21262d; border-radius: 8px;
-  padding: 14px 16px; margin-bottom: 8px;
+  padding: 16px; margin-bottom: 10px;
+  transition: border-color 0.15s;
 }
+.agent-card:hover { border-color: #30363d; }
 .agent-card-header {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 6px;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 10px;
 }
 .agent-name {
-  color: #f0f6fc; font-size: 14px; font-weight: 600;
+  color: #f0f6fc; font-size: 15px; font-weight: 700;
 }
 .agent-id {
   color: #484f58; font-size: 11px; font-family: monospace;
+  margin-left: 8px;
 }
-.agent-skill {
-  color: #8b949e; font-size: 13px; margin-bottom: 8px; line-height: 1.5;
+.agent-trust-badge {
+  display: flex; flex-direction: column; align-items: center;
+  background: #0d1117; border: 1px solid #21262d; border-radius: 6px;
+  padding: 6px 12px; min-width: 60px;
 }
-.agent-stats {
-  display: flex; gap: 16px;
+.trust-value {
+  color: #58a6ff; font-size: 16px; font-weight: 700;
 }
-.stat {
-  color: #8b949e; font-size: 12px;
+.trust-label {
+  color: #484f58; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
-.stat strong { color: #58a6ff; }
 
-/* === Forms === */
-.register-form { margin-top: 8px; }
-.form-row {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-  margin-bottom: 8px;
+/* skill.md rendering */
+.agent-skill-md {
+  color: #8b949e; font-size: 13px; line-height: 1.6;
+  margin-bottom: 10px; padding-left: 2px;
 }
-textarea, input[type="text"], input[type="number"] {
-  width: 100%; background: #161b22; color: #c9d1d9;
-  border: 1px solid #30363d; border-radius: 6px;
-  padding: 10px 12px; font-size: 14px; font-family: inherit;
-  transition: border-color 0.15s;
+.skill-heading {
+  color: #c9d1d9; font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.3px;
+  margin-top: 8px; margin-bottom: 4px;
 }
-textarea:focus, input:focus {
-  border-color: #58a6ff; outline: none;
+.skill-item {
+  color: #8b949e; font-size: 12px;
+  padding-left: 12px; position: relative;
 }
+.skill-item::before {
+  content: "•"; position: absolute; left: 2px; color: #484f58;
+}
+
+.agent-stats { display: flex; gap: 16px; }
+.stat { color: #8b949e; font-size: 12px; }
+.stat strong { color: #58a6ff; }
 
 /* === Buttons === */
 .btn-primary {
@@ -115,13 +123,19 @@ textarea:focus, input:focus {
 .btn-ghost-small:hover { color: #f85149; border-color: #f85149; }
 
 .action-row {
-  display: flex; align-items: center; gap: 12px;
-  margin-top: 12px;
+  display: flex; align-items: center; gap: 12px; margin-top: 12px;
 }
 .action-row label {
   color: #c9d1d9; font-size: 13px; font-weight: 600;
 }
 .status-msg { color: #8b949e; font-size: 13px; }
+
+textarea, input[type="text"], input[type="number"] {
+  background: #161b22; color: #c9d1d9;
+  border: 1px solid #30363d; border-radius: 6px;
+  padding: 10px 12px; font-size: 14px; font-family: inherit;
+}
+input:focus { border-color: #58a6ff; outline: none; }
 
 /* === Sidebar / Rankings === */
 .sidebar { position: sticky; top: 24px; }
@@ -134,27 +148,47 @@ textarea:focus, input:focus {
   padding: 14px 16px; border-bottom: 1px solid #21262d;
   margin-bottom: 0;
 }
+.ranking-desc {
+  color: #484f58; font-size: 11px; padding: 8px 16px 4px;
+  line-height: 1.5;
+}
 .rank-row {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 16px;
-  border-bottom: 1px solid #161b22;
+  border-bottom: 1px solid #0d1117;
 }
 .rank-row:last-child { border-bottom: none; }
 .rank-num {
   color: #484f58; font-size: 12px; font-weight: 700;
-  width: 20px; text-align: center;
+  width: 20px; text-align: center; flex-shrink: 0;
 }
 .rank-num.top { color: #f0f6fc; }
+.rank-info { flex: 1; min-width: 0; }
 .rank-name {
-  flex: 1; color: #c9d1d9; font-size: 13px; font-weight: 600;
+  color: #c9d1d9; font-size: 13px; font-weight: 600;
+  display: block;
+}
+.rank-bar-container {
+  background: #21262d; border-radius: 3px; height: 4px;
+  margin: 4px 0 2px; overflow: hidden;
+}
+.rank-bar {
+  background: #238636; height: 100%; border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.rank-pop {
+  color: #484f58; font-size: 10px;
 }
 .rank-score {
   color: #58a6ff; font-size: 14px; font-weight: 700;
+  flex-shrink: 0;
 }
+.rank-score.medal { color: #f0c040; }
 
 /* === Simulation Results === */
 .results-summary {
   color: #8b949e; font-size: 13px; margin-bottom: 12px;
+  font-weight: 600;
 }
 .sim-table {
   width: 100%; border-collapse: collapse; font-size: 13px;
@@ -169,6 +203,9 @@ textarea:focus, input:focus {
 .sim-table td {
   padding: 8px 10px; border-bottom: 1px solid #161b22;
 }
+.task-cell {
+  color: #8b949e; font-size: 12px; max-width: 200px;
+}
 .outcome-success { color: #3fb950; font-weight: 600; }
 .outcome-fail { color: #f85149; font-weight: 600; }
 .arrow-up { color: #3fb950; font-weight: 700; }
@@ -177,6 +214,7 @@ textarea:focus, input:focus {
   color: #f0f6fc; font-size: 14px; font-weight: 700;
   margin-bottom: 8px;
 }
+.winner-row td { color: #f0c040; }
 .agent-id-small {
   color: #484f58; font-size: 11px; font-family: monospace;
   margin-left: 6px;
@@ -195,7 +233,6 @@ footer {
 @media (max-width: 800px) {
   .layout { grid-template-columns: 1fr; }
   .sidebar { position: static; order: -1; }
-  .form-row { grid-template-columns: 1fr; }
   header { padding: 24px 16px 20px; }
   .layout { padding: 16px; }
 }

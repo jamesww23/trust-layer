@@ -42,11 +42,12 @@ class TestAgent:
 
 class TestInteraction:
     def test_to_dict(self):
-        i = Interaction(1, "req", "prov", True, 0.5, 0.6)
+        i = Interaction(1, "req", "prov", "Summarize a doc", True, 0.5, 0.6)
         d = i.to_dict()
         assert d["round"] == 1
         assert d["requester"] == "req"
         assert d["provider"] == "prov"
+        assert d["task"] == "Summarize a doc"
         assert d["outcome"] is True
         assert d["trust_before"] == 0.5
         assert d["trust_after"] == 0.6

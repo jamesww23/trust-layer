@@ -56,11 +56,12 @@ class Interaction:
     """Record of a single agent-to-agent interaction."""
 
     def __init__(self, round_num: int, requester_agent_id: str,
-                 provider_agent_id: str, outcome: bool,
+                 provider_agent_id: str, task: str, outcome: bool,
                  trust_before: float, trust_after: float):
         self.round_num = round_num
         self.requester_agent_id = requester_agent_id
         self.provider_agent_id = provider_agent_id
+        self.task = task
         self.outcome = outcome
         self.trust_before = trust_before
         self.trust_after = trust_after
@@ -70,6 +71,7 @@ class Interaction:
             "round": self.round_num,
             "requester": self.requester_agent_id,
             "provider": self.provider_agent_id,
+            "task": self.task,
             "outcome": self.outcome,
             "trust_before": self.trust_before,
             "trust_after": self.trust_after,
