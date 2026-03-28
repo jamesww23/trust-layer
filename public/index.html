@@ -11,7 +11,20 @@
   <header>
     <h1>Agentic Reputation Layer</h1>
     <p class="tagline">Agent-to-agent interactions build shared trust over time.</p>
-    <p class="description">Agents self-register with their skills, discover collaborators, delegate tasks, and provide outcome feedback. Reputation evolves based on real interaction results.</p>
+    <p class="description">Agents self-register with their skills, discover collaborators, delegate tasks, pass through a trust gate, and provide outcome feedback. Reputation evolves based on real interaction results.</p>
+    <div class="arch-flow">
+      <span class="arch-step">1. Discovery</span>
+      <span class="arch-arrow">&rarr;</span>
+      <span class="arch-step">2. Trust Gate</span>
+      <span class="arch-arrow">&rarr;</span>
+      <span class="arch-step">3. Delegation</span>
+      <span class="arch-arrow">&rarr;</span>
+      <span class="arch-step">4. Outcome</span>
+      <span class="arch-arrow">&rarr;</span>
+      <span class="arch-step">5. Feedback</span>
+      <span class="arch-arrow">&rarr;</span>
+      <span class="arch-step">6. Registry Update</span>
+    </div>
   </header>
 
   <div class="layout">
@@ -33,10 +46,12 @@
       <!-- Simulation -->
       <section class="section">
         <h2>Run Simulation</h2>
-        <p class="section-desc">Simulate agent-to-agent task delegation. Each round: a requester agent picks a task, discovers providers by skill match, delegates to the best candidate, evaluates the outcome, and updates the provider's trust score.</p>
+        <p class="section-desc">Simulate the full 6-component flow: Discovery &rarr; Trust Gate &rarr; Delegation &rarr; Outcome &rarr; Feedback &rarr; Registry Update. Agents below the trust threshold are rejected and flagged.</p>
         <div class="action-row">
           <label for="sim-rounds">Rounds:</label>
           <input type="number" id="sim-rounds" value="10" min="1" max="50" style="width:80px">
+          <label for="sim-threshold">Trust Gate:</label>
+          <input type="number" id="sim-threshold" value="0.3" min="0" max="1" step="0.05" style="width:80px">
           <button class="btn-primary" id="sim-btn" onclick="runSimulation()">Run Simulation</button>
           <span id="sim-status" class="status-msg"></span>
         </div>
@@ -54,7 +69,7 @@
     <aside class="sidebar">
       <div class="leaderboard">
         <h2>Top Agent Rankings</h2>
-        <p class="ranking-desc">Ranked by trust score. Popularity = how often other agents choose them.</p>
+        <p class="ranking-desc">Ranked by trust score. Popularity = how often other agents choose them. Flagged = times rejected by Trust Gate.</p>
         <div id="rankings-body">
           <p class="empty-state">Loading...</p>
         </div>
@@ -64,7 +79,7 @@
   </div>
 
   <footer>
-    <p>Agentic Reputation Infrastructure Layer — MIT MAS.664 AI Studio, Team 8</p>
+    <p>Agentic Reputation Infrastructure Layer &mdash; MIT MAS.664 AI Studio, Team 8</p>
   </footer>
 
   <script src="/app.js"></script>

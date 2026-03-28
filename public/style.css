@@ -220,6 +220,29 @@ input:focus { border-color: #58a6ff; outline: none; }
   margin-left: 6px;
 }
 
+/* === Architecture Flow === */
+.arch-flow {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 16px; flex-wrap: wrap;
+}
+.arch-step {
+  background: #161b22; border: 1px solid #30363d; border-radius: 6px;
+  padding: 4px 10px; font-size: 12px; font-weight: 600;
+  color: #58a6ff;
+}
+.arch-arrow { color: #484f58; font-size: 14px; }
+
+/* === Trust Gate & Feedback Badges === */
+.gate-pass { color: #3fb950; font-weight: 600; font-size: 12px; }
+.gate-reject { color: #f85149; font-weight: 600; font-size: 12px; }
+.outcome-skip { color: #484f58; }
+.rejected-count { color: #f85149; font-size: 11px; }
+.rejected-row { opacity: 0.6; }
+.feedback-score { color: #d2a8ff; font-weight: 600; }
+.flagged-stat strong { color: #f85149; }
+.flagged-count { color: #f85149; font-weight: 700; }
+.rank-flagged { color: #f85149; font-size: 10px; margin-left: 4px; }
+
 .empty-state { color: #484f58; font-size: 14px; text-align: center; padding: 24px; }
 
 /* === Footer === */

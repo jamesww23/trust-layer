@@ -1,4 +1,4 @@
-"""POST /api/run-simulation — Run multi-round agent interaction simulation."""
+"""POST /api/submit-feedback — Submit explicit feedback for an agent."""
 
 import json
 import sys
@@ -8,49 +8,50 @@ from http.server import BaseHTTPRequestHandler
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.store import RedisStore
-from core.fixtures import seed_store
-from core.controller import run_simulation
+from core.controller import submit_feedback
 
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             store = RedisStore()
-            seed_store(store)
 
             content_length = int(self.headers.get("Content-Length", 0))
-            body = {}
-            if content_length > 0:
-                raw = self.rfile.read(content_length)
-                try:
-                    body = json.loads(raw.decode())
-                except (json.JSONDecodeError, UnicodeDecodeError):
-                    body = {}
+            if content_length == 0:
+                self._error(400, "Request body required")
+                return
+
+            raw = self.rfile.read(content_length)
+            try:
+                body = json.loads(raw.decode())
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                self._error(400, "Invalid JSON")
+                return
 
             if not isinstance(body, dict):
-                body = {}
-
-            rounds_raw = body.get("rounds", 5)
-            if not isinstance(rounds_raw, int) or isinstance(rounds_raw, bool):
-                self._error(400, "rounds must be an integer")
+                self._error(400, "Request body must be a JSON object")
                 return
-            if rounds_raw < 1:
-                self._error(400, "rounds must be at least 1")
+
+            agent_id = body.get("agent_id")
+            score = body.get("score")
+
+            if not agent_id:
+                self._error(400, "agent_id is required")
                 return
-            rounds = min(rounds_raw, 50)
+            if score is None or not isinstance(score, (int, float)):
+                self._error(400, "score must be a number between 0.0 and 1.0")
+                return
 
-            threshold_raw = body.get("trust_threshold", 0.3)
-            if not isinstance(threshold_raw, (int, float)) or isinstance(threshold_raw, bool):
-                threshold_raw = 0.3
-            trust_threshold = max(0.0, min(1.0, float(threshold_raw)))
-
-            result = run_simulation(store, rounds, trust_threshold=trust_threshold)
+            result = submit_feedback(store, agent_id, float(score))
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
-            self.wfile.write(json.dumps(result).encode())
+            self.wfile.write(json.dumps({
+                "status": "feedback_recorded",
+                "agent": result,
+            }).encode())
 
         except ValueError as e:
             self._error(400, str(e))

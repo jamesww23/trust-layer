@@ -1,11 +1,15 @@
 """Simulation controller for Agentic Reputation Infrastructure Layer.
 
-Runs multi-round agent interaction simulations that demonstrate
-trust score evolution through agent-to-agent delegation and feedback.
+Implements all 6 architecture components:
+1. Discovery API — find agents by skill match
+2. Reputation Registry — trust scores evolve with interactions
+3. Trust Gate — reject providers below configurable threshold
+4. Feedback Ingestion — explicit feedback after task completion
+5. Task Delegation — requester selects and delegates to provider
+6. Outcome Flow — execute → feedback → registry update (or reject/flag)
 """
 
 import random
-import uuid
 
 from core.models import Agent, Interaction
 from core.store import AgentStore
@@ -23,6 +27,9 @@ TASK_CATALOG = [
     {"task": "Investigate security vulnerability", "keywords": ["security", "research", "vulnerability", "analysis"]},
     {"task": "Translate API docs to Japanese", "keywords": ["translat", "api", "documentation", "language"]},
 ]
+
+# Default trust gate threshold
+DEFAULT_TRUST_THRESHOLD = 0.3
 
 
 def update_trust(agent: Agent, outcome: bool) -> float:
@@ -49,6 +56,55 @@ def determine_outcome(provider: Agent) -> bool:
     return random.random() < prob
 
 
+def compute_feedback_score(outcome: bool, provider: Agent) -> float:
+    """Compute explicit feedback score from requester to provider.
+
+    Feedback is on a 0.0-1.0 scale, influenced by outcome and provider trust.
+    Adds slight randomness to simulate real requester judgment.
+    """
+    if outcome:
+        base = 0.7 + 0.2 * provider.success_rate
+        noise = random.uniform(-0.1, 0.1)
+    else:
+        base = 0.1 + 0.2 * provider.success_rate
+        noise = random.uniform(-0.05, 0.1)
+    return round(max(0.0, min(1.0, base + noise)), 2)
+
+
+def apply_trust_gate(candidates: list, threshold: float) -> tuple:
+    """Apply trust gate — filter out agents below threshold.
+
+    Returns (passed, rejected) where each is a list of agents.
+    """
+    passed = []
+    rejected = []
+    for agent in candidates:
+        if agent.success_rate >= threshold:
+            passed.append(agent)
+        else:
+            rejected.append(agent)
+    return passed, rejected
+
+
+def submit_feedback(store: AgentStore, provider_id: str, score: float) -> dict:
+    """Submit explicit feedback for an agent (standalone endpoint support).
+
+    Score is 0.0-1.0. Adjusts trust slightly based on feedback.
+    Returns updated agent dict.
+    """
+    if score < 0.0 or score > 1.0:
+        raise ValueError("Feedback score must be between 0.0 and 1.0")
+    agent = store.get(provider_id)
+    if agent is None:
+        raise ValueError(f"Agent '{provider_id}' not found")
+
+    # Blend feedback into trust: small adjustment toward feedback score
+    adjustment = (score - agent.success_rate) * 0.1
+    agent.success_rate = round(max(0.0, min(1.0, agent.success_rate + adjustment)), 4)
+    store.upsert(agent)
+    return agent.to_dict()
+
+
 def _find_providers(store: AgentStore, task_entry: dict, exclude_id: str) -> list:
     """Find agents whose skill_md matches any of the task keywords."""
     all_agents = store.list_all()
@@ -65,17 +121,17 @@ def _find_providers(store: AgentStore, task_entry: dict, exclude_id: str) -> lis
     return [agent for agent, _ in scored]
 
 
-def run_simulation(store: AgentStore, rounds: int = 5) -> dict:
+def run_simulation(store: AgentStore, rounds: int = 5,
+                   trust_threshold: float = DEFAULT_TRUST_THRESHOLD) -> dict:
     """Run a multi-round agent interaction simulation.
 
-    Each round:
-    1. Select a random requester agent
-    2. Pick a random task from the catalog
-    3. Discover candidate providers by skill match
-    4. Select provider (highest relevance + trust, with some randomness)
-    5. Simulate output and determine outcome
-    6. Update provider trust score
-    7. Persist updated agent
+    Each round implements all 6 architecture components:
+    1. DISCOVERY — find candidate providers by skill match
+    2. TRUST GATE — reject candidates below trust threshold
+    3. TASK DELEGATION — requester selects provider from gate-passed candidates
+    4. OUTCOME — simulate task execution, determine success/failure
+    5. FEEDBACK — requester submits explicit feedback score
+    6. REGISTRY UPDATE — update provider trust score, persist changes
 
     Returns dict with history (per-round trace) and final_agents.
     """
@@ -86,13 +142,13 @@ def run_simulation(store: AgentStore, rounds: int = 5) -> dict:
     history = []
 
     for round_num in range(1, rounds + 1):
-        # 1. Select requester
+        # Select requester
         requester = random.choice(agents)
 
-        # 2. Pick a task
+        # Pick a task
         task_entry = random.choice(TASK_CATALOG)
 
-        # 3. Discover candidates by skill match (exclude requester)
+        # --- 1. DISCOVERY ---
         candidates = _find_providers(store, task_entry, requester.agent_id)
 
         # Fall back to all agents except requester if no skill match
@@ -102,28 +158,62 @@ def run_simulation(store: AgentStore, rounds: int = 5) -> dict:
         if not candidates:
             continue
 
-        # 4. Select provider — best match, with randomness among top 2
-        top = candidates[:min(2, len(candidates))]
+        discovery_count = len(candidates)
+
+        # --- 2. TRUST GATE ---
+        passed, rejected = apply_trust_gate(candidates, trust_threshold)
+
+        # Flag rejected agents
+        rejected_ids = []
+        for rej_agent in rejected:
+            rej_agent.flagged += 1
+            store.upsert(rej_agent)
+            rejected_ids.append(rej_agent.agent_id)
+
+        # If all candidates rejected, record the rejection and continue
+        if not passed:
+            interaction = Interaction(
+                round_num=round_num,
+                requester_agent_id=requester.agent_id,
+                provider_agent_id="none",
+                task=task_entry["task"],
+                discovery_candidates=discovery_count,
+                gate_passed=False,
+                gate_rejected=rejected_ids,
+                outcome=None,
+                feedback_score=None,
+                trust_before=0.0,
+                trust_after=0.0,
+            )
+            history.append(interaction.to_dict())
+            continue
+
+        # --- 3. TASK DELEGATION ---
+        top = passed[:min(2, len(passed))]
         provider = random.choice(top)
 
-        # 5. Determine outcome
+        # --- 4. OUTCOME ---
         trust_before = provider.success_rate
-
         outcome = determine_outcome(provider)
 
-        # 6. Update trust
-        trust_after = update_trust(provider, outcome)
+        # --- 5. FEEDBACK ---
+        feedback_score = compute_feedback_score(outcome, provider)
 
-        # 7. Persist
+        # --- 6. REGISTRY UPDATE ---
+        trust_after = update_trust(provider, outcome)
         store.upsert(provider)
 
-        # Record interaction
+        # Record full interaction trace
         interaction = Interaction(
             round_num=round_num,
             requester_agent_id=requester.agent_id,
             provider_agent_id=provider.agent_id,
             task=task_entry["task"],
+            discovery_candidates=discovery_count,
+            gate_passed=True,
+            gate_rejected=rejected_ids,
             outcome=outcome,
+            feedback_score=feedback_score,
             trust_before=trust_before,
             trust_after=trust_after,
         )
@@ -138,6 +228,7 @@ def run_simulation(store: AgentStore, rounds: int = 5) -> dict:
 
     return {
         "rounds": rounds,
+        "trust_threshold": trust_threshold,
         "history": history,
         "final_agents": final_agents,
     }

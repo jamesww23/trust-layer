@@ -15,6 +15,7 @@
     { "src": "/api/agents", "dest": "/api/agents.py" },
     { "src": "/api/discover", "dest": "/api/discover.py" },
     { "src": "/api/run-simulation", "dest": "/api/run_simulation.py" },
+    { "src": "/api/submit-feedback", "dest": "/api/submit_feedback.py" },
     { "src": "/api/reset", "dest": "/api/reset.py" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]

@@ -42,7 +42,11 @@ class TestAgent:
 
 class TestInteraction:
     def test_to_dict(self):
-        i = Interaction(1, "req", "prov", "Summarize a doc", True, 0.5, 0.6)
+        i = Interaction(
+            round_num=1, requester_agent_id="req",
+            provider_agent_id="prov", task="Summarize a doc",
+            outcome=True, trust_before=0.5, trust_after=0.6,
+        )
         d = i.to_dict()
         assert d["round"] == 1
         assert d["requester"] == "req"
@@ -51,3 +55,25 @@ class TestInteraction:
         assert d["outcome"] is True
         assert d["trust_before"] == 0.5
         assert d["trust_after"] == 0.6
+
+    def test_gate_fields(self):
+        i = Interaction(
+            round_num=1, requester_agent_id="req",
+            provider_agent_id="prov", task="Test task",
+            discovery_candidates=5, gate_passed=False,
+            gate_rejected=["a1", "a2"], feedback_score=0.8,
+        )
+        d = i.to_dict()
+        assert d["discovery_candidates"] == 5
+        assert d["gate_passed"] is False
+        assert d["gate_rejected"] == ["a1", "a2"]
+        assert d["feedback_score"] == 0.8
+
+    def test_flagged_default(self):
+        a = Agent("a1", "Test", "Skill")
+        assert a.flagged == 0
+
+    def test_flagged_in_dict(self):
+        a = Agent("a1", "Test", "Skill", flagged=3)
+        d = a.to_dict()
+        assert d["flagged"] == 3
