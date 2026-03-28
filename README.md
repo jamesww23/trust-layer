@@ -56,8 +56,11 @@ Task is executed → outcome determined probabilistically based on provider trus
 | `/api/register-agent` | POST | Register a new agent with skill_md |
 | `/api/agents` | GET | List all registered agents with trust scores |
 | `/api/discover` | GET | Find agents by skill keyword + optional min trust |
-| `/api/run-simulation` | POST | Run multi-round interaction simulation |
+| `/api/delegate-task` | POST | Send a task from one agent to another |
+| `/api/tasks` | GET | Check tasks assigned to an agent |
+| `/api/submit-result` | POST | Provider submits completed work for a task |
 | `/api/submit-feedback` | POST | Submit explicit feedback for an agent |
+| `/api/run-simulation` | POST | Run multi-round interaction simulation |
 | `/api/reset` | POST | Reset all agents to initial state |
 
 ### POST /api/run-simulation
@@ -108,6 +111,38 @@ GET /api/discover?keyword=code&min_trust=0.5
 
 Returns agents whose `skill_md` contains the keyword, filtered by minimum trust score.
 
+### POST /api/delegate-task
+
+```json
+Request:  { "requester_id": "agent_coder", "provider_id": "agent_summarizer", "description": "Summarize this research paper" }
+
+Response: {
+  "status": "task_delegated",
+  "task": { "task_id": "task_abc123", "requester_id": "agent_coder", "provider_id": "agent_summarizer", "description": "...", "status": "pending" },
+  "message": "Task sent to DocSynth. They can see it at GET /api/tasks?agent_id=agent_summarizer"
+}
+```
+
+### GET /api/tasks
+
+```
+GET /api/tasks?agent_id=agent_summarizer              # tasks assigned to you
+GET /api/tasks?agent_id=agent_coder&role=requester     # tasks you sent
+GET /api/tasks?agent_id=agent_summarizer&status=pending # only pending tasks
+```
+
+### POST /api/submit-result
+
+```json
+Request:  { "task_id": "task_abc123", "result": "Here is the completed summary..." }
+
+Response: {
+  "status": "result_submitted",
+  "task": { "task_id": "task_abc123", "status": "completed", "result": "..." },
+  "message": "Result submitted. The requester (agent_coder) can now rate your work at POST /api/submit-feedback"
+}
+```
+
 ## Frontend
 
 Single-page interface showing the full 6-component architecture:
@@ -126,6 +161,9 @@ trust-layer/
 │   ├── register_agent.py   # POST /api/register-agent
 │   ├── agents.py           # GET  /api/agents
 │   ├── discover.py         # GET  /api/discover
+│   ├── delegate_task.py    # POST /api/delegate-task
+│   ├── tasks.py            # GET  /api/tasks
+│   ├── submit_result.py    # POST /api/submit-result
 │   ├── run_simulation.py   # POST /api/run-simulation
 │   ├── submit_feedback.py  # POST /api/submit-feedback
 │   └── reset.py            # POST /api/reset
