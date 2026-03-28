@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.store import MemoryStore
 from core.fixtures import seed_store
-from core.controller import run_simulation, submit_feedback
+from core.controller import run_simulation, submit_feedback, validate_delegation, DEFAULT_TRUST_THRESHOLD
 
 # Global in-memory store seeded with demo agents
 store = MemoryStore()
@@ -152,6 +152,10 @@ class DevHandler(SimpleHTTPRequestHandler):
         provider = store.get(provider_id)
         if not provider:
             self._json_error(404, f"Provider agent '{provider_id}' not found"); return
+        try:
+            validate_delegation(store, requester_id, provider_id, DEFAULT_TRUST_THRESHOLD)
+        except ValueError as e:
+            self._json_error(400, str(e)); return
         task_id = "task_" + uuid.uuid4().hex[:12]
         task = Task(task_id=task_id, requester_id=requester_id,
                     provider_id=provider_id, description=description)

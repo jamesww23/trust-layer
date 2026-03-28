@@ -92,6 +92,29 @@ def apply_trust_gate(candidates: list, threshold: float) -> tuple:
     return passed, rejected
 
 
+def validate_delegation(store: AgentStore, requester_id: str, provider_id: str,
+                        threshold: float = DEFAULT_TRUST_THRESHOLD) -> None:
+    """Validate a delegation request. Raises ValueError if invalid.
+
+    Checks:
+    1. Self-delegation is not allowed.
+    2. Provider must pass the trust gate.
+    """
+    if requester_id == provider_id:
+        raise ValueError("Self-delegation is not allowed — an agent cannot delegate tasks to itself")
+
+    provider = store.get(provider_id)
+    if provider is None:
+        raise ValueError(f"Provider agent '{provider_id}' not found")
+
+    if provider.trust_score < threshold:
+        raise ValueError(
+            f"Provider '{provider_id}' has trust {provider.trust_score:.2f} "
+            f"which is below the minimum threshold ({threshold:.2f}). "
+            f"Delegation rejected."
+        )
+
+
 def submit_feedback(store: AgentStore, provider_id: str, score: float) -> dict:
     """Submit explicit feedback for an agent (standalone endpoint support).
 

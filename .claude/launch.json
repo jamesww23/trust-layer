@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "trust-layer-frontend",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", "public", "-l", "3000", "--no-clipboard"],
+      "name": "trust-layer",
+      "runtimeExecutable": "tail",
+      "runtimeArgs": ["-f", "/dev/null"],
       "port": 3000
     }
   ]

@@ -60,8 +60,8 @@ function renderAgentList(agents) {
             <span class="agent-id">${esc(a.agent_id)}</span>
           </div>
           <div class="agent-trust-badge">
-            <span class="trust-stars">${toStars(a.trust_score != null ? a.trust_score : a.success_rate)}</span>
-            <span class="trust-value">${starsNum(a.trust_score != null ? a.trust_score : a.success_rate)}/5</span>
+            <span class="trust-stars">${toScoreBar(a.trust_score != null ? a.trust_score : a.success_rate)}</span>
+            <span class="trust-value">${scoreNum(a.trust_score != null ? a.trust_score : a.success_rate)}%</span>
           </div>
         </div>
         <div class="agent-skill-md">${skillHtml}</div>
@@ -117,7 +117,7 @@ function renderRankings(agents) {
           </div>
           <span class="rank-pop">${a.total_runs} tasks ${flaggedTag}</span>
         </div>
-        <span class="rank-score${medal}">${starsNum(a.trust_score != null ? a.trust_score : a.success_rate)}★</span>
+        <span class="rank-score${medal}">${scoreNum(a.trust_score != null ? a.trust_score : a.success_rate)}%</span>
       </div>
     `;
   }).join("");
@@ -218,7 +218,7 @@ async function discoverAgents() {
         <div class="discover-card">
           <div class="discover-header">
             <strong>${esc(a.agent_name || a.agent_id)}</strong>
-            <span class="discover-trust">${toStars(a.trust_score != null ? a.trust_score : (a.success_rate || 0.5))} ${starsNum(a.trust_score != null ? a.trust_score : (a.success_rate || 0.5))}★</span>
+            <span class="discover-trust">${scoreNum(a.trust_score != null ? a.trust_score : (a.success_rate || 0.5))}%</span>
           </div>
           <div class="discover-skill">${esc((a.skill_md || '').substring(0, 150))}${(a.skill_md || '').length > 150 ? '...' : ''}</div>
         </div>
@@ -244,7 +244,7 @@ function populateRateDropdown(agents) {
     const opt = document.createElement("option");
     opt.value = a.agent_id;
     const ts = a.trust_score != null ? a.trust_score : a.success_rate;
-    opt.textContent = a.agent_name + " (" + starsNum(ts) + "★)";
+    opt.textContent = a.agent_name + " (" + scoreNum(ts) + "%)";
     select.appendChild(opt);
   }
 }
@@ -270,7 +270,7 @@ async function submitRating(score) {
     if (!res.ok) throw new Error(data.error || "Rating failed");
 
     const ts = data.agent.trust_score != null ? data.agent.trust_score : data.agent.success_rate;
-    status.textContent = "Rated! " + data.agent.agent_name + " now has " + starsNum(ts) + "★ trust.";
+    status.textContent = "Rated! " + data.agent.agent_name + " now has " + scoreNum(ts) + "% trust.";
 
     // Refresh the page data
     loadAgents();
@@ -395,7 +395,7 @@ function renderSimResults(data) {
       <tr class="${i === 0 ? 'winner-row' : ''}">
         <td>${i + 1}</td>
         <td><strong>${esc(a.agent_name)}</strong> <span class="agent-id-small">${esc(a.agent_id)}</span></td>
-        <td><strong>${starsNum(a.trust_score != null ? a.trust_score : a.success_rate)}★</strong></td>
+        <td><strong>${scoreNum(a.trust_score != null ? a.trust_score : a.success_rate)}%</strong></td>
         <td>${a.total_runs}</td>
         <td>${flaggedCell}</td>
       </tr>
@@ -423,17 +423,16 @@ async function resetAll() {
   }
 }
 
-function toStars(score) {
-  const stars = Math.round(score * 5 * 2) / 2; // round to nearest 0.5
-  const clamped = Math.max(0, Math.min(5, stars));
-  const full = Math.floor(clamped);
-  const half = clamped % 1 >= 0.5 ? 1 : 0;
-  const empty = 5 - full - half;
-  return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty);
+function toScoreBar(score) {
+  const val = Math.round(score * 10);
+  const clamped = Math.max(0, Math.min(10, val));
+  const filled = '●'.repeat(clamped);
+  const empty = '○'.repeat(10 - clamped);
+  return filled + empty;
 }
 
-function starsNum(score) {
-  return (Math.round(score * 5 * 2) / 2).toFixed(1);
+function scoreNum(score) {
+  return Math.round(score * 100);
 }
 
 function esc(str) {

@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.store import RedisStore
 from core.models import Task
+from core.controller import validate_delegation, DEFAULT_TRUST_THRESHOLD
 
 
 class handler(BaseHTTPRequestHandler):
@@ -56,6 +57,13 @@ class handler(BaseHTTPRequestHandler):
             provider = store.get(provider_id)
             if not provider:
                 self._error(404, f"Provider agent '{provider_id}' not found")
+                return
+
+            # Validate delegation (self-delegation + trust gate)
+            try:
+                validate_delegation(store, requester_id, provider_id, DEFAULT_TRUST_THRESHOLD)
+            except ValueError as e:
+                self._error(400, str(e))
                 return
 
             # Create the task and track on provider
