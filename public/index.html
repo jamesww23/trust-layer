@@ -63,16 +63,9 @@
       <!-- Tab: Evaluate Agents -->
       <section id="tab-evaluate" class="tab-content">
         <div class="tab-intro">
-          <p>Enter a task, choose how to get agent outputs, and let the Trust Layer score and rank them.</p>
+          <p>Paste outputs from different AI agents and let the Trust Layer score and rank them. Pick which agent produced each response, enter the task details, and run the evaluation.</p>
         </div>
 
-        <!-- Mode selector -->
-        <div class="mode-selector">
-          <button class="mode-btn active" data-mode="llm" onclick="switchEvalMode('llm')">Auto-generate from LLMs</button>
-          <button class="mode-btn" data-mode="paste" onclick="switchEvalMode('paste')">Paste outputs manually</button>
-        </div>
-
-        <!-- Shared: prompt + keywords -->
         <div class="form-group">
           <label for="eval-prompt">Task prompt</label>
           <textarea id="eval-prompt" rows="3" placeholder="e.g. Explain the pros and cons of microservices vs monolithic architecture"></textarea>
@@ -83,43 +76,27 @@
           <input type="text" id="eval-keywords" placeholder="e.g. scalability, deployment, complexity, latency">
         </div>
 
-        <!-- LLM mode: provider info -->
-        <div id="eval-llm-section">
-          <div class="form-group">
-            <label>Available providers</label>
-            <div id="providers-status" class="providers-badge">
-              <span class="provider-tag">Loading...</span>
+        <div class="form-group">
+          <label>Agent outputs</label>
+          <div id="candidates-list">
+            <div class="candidate-input">
+              <select class="cand-agent-select">
+                <option value="">Select an agent...</option>
+              </select>
+              <textarea rows="2" placeholder="Paste the agent's response here..." class="cand-output"></textarea>
             </div>
-            <p class="field-hint">The system will send your task to all available providers, generate responses, then score and rank them.</p>
-          </div>
-        </div>
-
-        <!-- Paste mode: agent outputs with dropdowns -->
-        <div id="eval-paste-section" style="display:none;">
-          <div class="form-group">
-            <label>Agent outputs</label>
-            <div id="candidates-list">
-              <div class="candidate-input">
-                <select class="cand-agent-select" onchange="onAgentSelect(this)">
-                  <option value="">Select an agent...</option>
-                </select>
-                <input type="text" placeholder="Or type a custom agent name" class="cand-agent-id" style="display:none;">
-                <textarea rows="2" placeholder="Paste the agent's response here..." class="cand-output"></textarea>
-              </div>
-              <div class="candidate-input">
-                <select class="cand-agent-select" onchange="onAgentSelect(this)">
-                  <option value="">Select an agent...</option>
-                </select>
-                <input type="text" placeholder="Or type a custom agent name" class="cand-agent-id" style="display:none;">
-                <textarea rows="2" placeholder="Paste the agent's response here..." class="cand-output"></textarea>
-              </div>
+            <div class="candidate-input">
+              <select class="cand-agent-select">
+                <option value="">Select an agent...</option>
+              </select>
+              <textarea rows="2" placeholder="Paste the agent's response here..." class="cand-output"></textarea>
             </div>
-            <button class="btn-ghost" onclick="addCandidate()">+ Add another agent</button>
           </div>
+          <button class="btn-ghost" onclick="addCandidate()">+ Add another agent</button>
         </div>
 
         <div class="action-row">
-          <button id="eval-run-btn" class="btn-primary" onclick="runEvaluation()">Run Evaluation</button>
+          <button class="btn-primary" onclick="runCustom()">Run Evaluation</button>
           <span id="evaluate-status" class="status-msg"></span>
         </div>
 

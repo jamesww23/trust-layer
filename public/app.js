@@ -1,10 +1,17 @@
-/* Trust Layer MVP — Redesigned Frontend */
+/* Trust Layer MVP — Frontend */
 
 const API_BASE = window.location.origin;
 let currentRunId = null;
-let currentTab = "demo";
-let evalMode = "llm"; // "llm" or "paste"
 let knownAgents = []; // populated from API
+
+// Fixed list of representative agents (one per LLM provider)
+const DEFAULT_AGENTS = [
+  { id: "agent_gpt4", name: "GPT-4" },
+  { id: "agent_claude", name: "Claude" },
+  { id: "agent_llama", name: "LLaMA" },
+  { id: "agent_gemini", name: "Gemini" },
+  { id: "agent_mistral", name: "Mistral" },
+];
 
 // --- Init ---
 document.addEventListener("DOMContentLoaded", () => {
@@ -16,18 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
 function switchTab(tab) {
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
   document.querySelectorAll(".tab-content").forEach(s => s.classList.toggle("active", s.id === "tab-" + tab));
-  currentTab = tab;
   if (tab === "history") loadHistory();
-}
-
-// --- Eval Mode Toggle ---
-function switchEvalMode(mode) {
-  evalMode = mode;
-  document.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("active", b.dataset.mode === mode));
-  document.getElementById("eval-llm-section").style.display = mode === "llm" ? "block" : "none";
-  document.getElementById("eval-paste-section").style.display = mode === "paste" ? "block" : "none";
-  document.getElementById("eval-run-btn").textContent =
-    mode === "llm" ? "Generate & Evaluate" : "Run Evaluation";
 }
 
 // --- Load State ---
@@ -40,28 +36,30 @@ async function loadState() {
     renderDemoTask(data.task);
     renderDemoCandidates(data.candidates);
     if (data.scenarios) renderScenarios(data.scenarios);
-    if (data.available_providers) renderProviders(data.available_providers);
 
-    // Build known agents list from profiles + providers
+    // Build known agents from profiles, falling back to defaults
     knownAgents = [];
-    if (data.profiles) {
+    if (data.profiles && data.profiles.length > 0) {
       data.profiles.forEach(p => {
         if (!knownAgents.find(a => a.id === p.agent_id)) {
           knownAgents.push({ id: p.agent_id, name: p.agent_name });
         }
       });
     }
-    if (data.available_providers) {
-      data.available_providers.forEach(p => {
-        if (!knownAgents.find(a => a.id === p.agent_id)) {
-          knownAgents.push({ id: p.agent_id, name: p.agent_name });
-        }
-      });
-    }
+    // Add any default agents not already present
+    DEFAULT_AGENTS.forEach(a => {
+      if (!knownAgents.find(k => k.id === a.id)) {
+        knownAgents.push(a);
+      }
+    });
+
     // Populate existing agent dropdowns
     document.querySelectorAll(".cand-agent-select").forEach(populateAgentDropdown);
   } catch (err) {
     setStatus("demo", "Error loading: " + err.message);
+    // Still populate dropdowns with defaults
+    knownAgents = [...DEFAULT_AGENTS];
+    document.querySelectorAll(".cand-agent-select").forEach(populateAgentDropdown);
   }
 }
 
@@ -70,29 +68,9 @@ function populateAgentDropdown(select) {
   const current = select.value;
   select.innerHTML = '<option value="">Select an agent...</option>' +
     knownAgents.map(a =>
-      `<option value="${esc(a.id)}">${esc(a.name)} (${esc(a.id)})</option>`
-    ).join("") +
-    '<option value="__custom__">Other (type name)...</option>';
+      `<option value="${esc(a.id)}">${esc(a.name)}</option>`
+    ).join("");
   if (current) select.value = current;
-}
-
-function onAgentSelect(select) {
-  const customInput = select.parentElement.querySelector(".cand-agent-id");
-  if (select.value === "__custom__") {
-    customInput.style.display = "block";
-    customInput.focus();
-  } else {
-    customInput.style.display = "none";
-    customInput.value = "";
-  }
-}
-
-function getAgentIdFromBlock(block) {
-  const select = block.querySelector(".cand-agent-select");
-  if (select.value === "__custom__") {
-    return block.querySelector(".cand-agent-id").value.trim();
-  }
-  return select.value;
 }
 
 // --- Leaderboard ---
@@ -190,51 +168,7 @@ async function runDemo() {
   }
 }
 
-// --- Providers ---
-function renderProviders(providers) {
-  const el = document.getElementById("providers-status");
-  if (!providers || providers.length === 0) {
-    el.innerHTML = '<span class="provider-tag">No providers configured — set API keys in Vercel</span>';
-    return;
-  }
-  el.innerHTML = providers.map(p =>
-    `<span class="provider-tag available">${esc(p.agent_name)} (${esc(p.provider)})</span>`
-  ).join("");
-}
-
-// --- Unified Evaluate ---
-async function runEvaluation() {
-  if (evalMode === "llm") {
-    await runLLM();
-  } else {
-    await runCustom();
-  }
-}
-
-async function runLLM() {
-  setStatus("evaluate", "Calling AI agents...");
-  try {
-    const prompt = document.getElementById("eval-prompt").value.trim();
-    if (!prompt) { setStatus("evaluate", "Enter a task prompt."); return; }
-    const keywordsRaw = document.getElementById("eval-keywords").value.trim();
-    const keywords = keywordsRaw ? keywordsRaw.split(",").map(k => k.trim()).filter(Boolean) : [];
-
-    const res = await fetch(API_BASE + "/api/run-llm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, expected_keywords: keywords }),
-    });
-    if (!res.ok) { const err = await res.json(); throw new Error(err.error || "LLM run failed"); }
-    const data = await res.json();
-    renderResultsInto("evaluate-results", data, true);
-    renderLeaderboard(data.profiles_after, null);
-    loadHistory();
-    setStatus("evaluate", "");
-  } catch (err) {
-    setStatus("evaluate", "Error: " + err.message);
-  }
-}
-
+// --- Custom Evaluation ---
 async function runCustom() {
   setStatus("evaluate", "Running evaluation...");
   try {
@@ -246,14 +180,14 @@ async function runCustom() {
     const blocks = document.querySelectorAll(".candidate-input");
     const candidates = [];
     for (const block of blocks) {
-      const agentId = getAgentIdFromBlock(block);
+      const agentId = block.querySelector(".cand-agent-select").value;
       const outputText = block.querySelector(".cand-output").value.trim();
       if (!agentId || !outputText) { setStatus("evaluate", "Select an agent and paste output for each entry."); return; }
       candidates.push({ agent_id: agentId, output_text: outputText });
     }
     if (candidates.length < 2) { setStatus("evaluate", "At least 2 agents required."); return; }
     const ids = candidates.map(c => c.agent_id);
-    if (new Set(ids).size !== ids.length) { setStatus("evaluate", "Each agent must be unique."); return; }
+    if (new Set(ids).size !== ids.length) { setStatus("evaluate", "Each agent must be different."); return; }
 
     const res = await fetch(API_BASE + "/api/run-custom", {
       method: "POST",
@@ -277,8 +211,7 @@ function addCandidate() {
   const block = document.createElement("div");
   block.className = "candidate-input";
   block.innerHTML =
-    '<select class="cand-agent-select" onchange="onAgentSelect(this)"><option value="">Select an agent...</option></select>' +
-    '<input type="text" placeholder="Or type a custom agent name" class="cand-agent-id" style="display:none;">' +
+    '<select class="cand-agent-select"><option value="">Select an agent...</option></select>' +
     '<textarea rows="2" placeholder="Paste the agent\'s response here..." class="cand-output"></textarea>' +
     '<button class="remove-cand-btn" onclick="removeCandidate(this)">&times;</button>';
   list.appendChild(block);
