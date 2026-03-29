@@ -47,7 +47,7 @@ CSV_PATH = os.path.normpath(os.path.join(
 ))
 
 RANDOM_SEED = 2025
-AGENT_ID = "skinscan_agent_service"
+AGENT_ID = os.environ.get("SKINSCAN_AGENT_ID", "skinscan_agent")
 AGENT_NAME = "SkinScanAgent"
 
 FEATURE_COLS = [

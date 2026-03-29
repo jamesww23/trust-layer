@@ -36,7 +36,7 @@ import urllib.error
 BASE_URL = os.environ.get("TRUST_LAYER_URL", "http://localhost:4000")
 SAMPLES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "sample_lesions.json")
 
-AGENT_ID = "wisdom_agent_requester"
+AGENT_ID = os.environ.get("WISDOM_AGENT_ID", "wisdom_agent")
 AGENT_NAME = "WisdomAgent"
 SKILL_MD = (
     "# WisdomAgent — Health & Financial Wellness Advisor\n\n"
@@ -151,8 +151,12 @@ def main():
     # --- Step 2: Discover skin scan specialists ---
     print(f"\n{'─'*60}")
     log("STEP 2: Searching for skin cancer detection specialists...")
-    result = api("GET", "/api/discover?keyword=skin%20melanoma%20detection%20lesion")
-    agents_found = result.get("agents", [])
+    # Try multi-keyword first, fall back to single keywords for compatibility
+    for query in ["skin%20melanoma%20detection%20lesion", "melanoma", "skin"]:
+        result = api("GET", f"/api/discover?keyword={query}")
+        agents_found = result.get("agents") or result.get("results") or []
+        if agents_found:
+            break
 
     if not agents_found:
         log("No skin scan agents found! Is SkinScanAgent running?")
