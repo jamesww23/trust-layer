@@ -445,6 +445,18 @@ input:focus { border-color: #58a6ff; outline: none; }
 .status-success { color: #3fb950; }
 .status-error { color: #f85149; }
 
+/* === Trust Delta Banner (inline after rating) === */
+.trust-delta-banner {
+  background: #0d2818; border: 1px solid #238636; border-radius: 6px;
+  padding: 8px 12px; color: #3fb950; font-size: 13px; font-weight: 600;
+  animation: trustFlash 0.4s ease-out;
+}
+.trust-delta-banner strong { color: #f0f6fc; }
+@keyframes trustFlash {
+  0% { background: #238636; }
+  100% { background: #0d2818; }
+}
+
 /* === Footer === */
 footer {
   max-width: 1120px; margin: 40px auto 0;

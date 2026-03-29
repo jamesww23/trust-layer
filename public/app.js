@@ -19,6 +19,11 @@ function switchTab(tabId) {
   // Activate matching button by data attribute
   document.querySelector('.tab-btn[data-tab="' + tabId + '"]').classList.add("active");
 
+  // Auto-load activity feed when switching to Tasks tab
+  if (tabId === "tasks") {
+    loadActivity();
+  }
+
   // Scroll to top
   window.scrollTo(0, 0);
 }
@@ -29,6 +34,13 @@ function switchTab(tabId) {
 
 async function loadAgents() {
   try {
+    // Save current dropdown selections before refreshing
+    const savedSelections = {};
+    for (const id of ["rate-agent", "delegate-requester", "delegate-provider", "inbox-agent"]) {
+      const el = document.getElementById(id);
+      if (el) savedSelections[id] = el.value;
+    }
+
     const res = await fetch(API + "/api/agents");
     if (!res.ok) throw new Error("Failed to load agents");
     const data = await res.json();
@@ -36,6 +48,14 @@ async function loadAgents() {
     renderRankings(data.agents);
     populateRateDropdown(data.agents);
     populateTaskDropdowns(data.agents);
+
+    // Restore dropdown selections
+    for (const [id, val] of Object.entries(savedSelections)) {
+      if (val) {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+      }
+    }
   } catch (err) {
     document.getElementById("agent-list").innerHTML =
       '<p class="empty-state">Error loading agents: ' + esc(err.message) + '</p>';
@@ -462,6 +482,7 @@ async function delegateTask() {
     document.getElementById("delegate-description").value = "";
     document.getElementById("delegate-payload").value = "";
     loadAgents();
+    loadActivity();
   } catch (err) {
     status.textContent = "Error: " + err.message;
     status.className = "status-msg status-error";
@@ -514,7 +535,7 @@ function renderTaskCard(t) {
   }
 
   return `
-    <div class="task-card">
+    <div class="task-card" data-task-id="${esc(t.task_id)}">
       <div class="task-card-header">
         <span class="task-status ${statusClass}">${statusLabel}</span>
         <span class="task-id">${esc(t.task_id)}</span>
@@ -546,6 +567,7 @@ async function submitTaskResult(taskId) {
     if (!res.ok) throw new Error(data.error || "Submit failed");
     loadInbox();
     loadAgents();
+    loadActivity();
   } catch (err) {
     alert("Error: " + err.message);
   }
@@ -566,16 +588,39 @@ async function rateCompletedTask(taskId, providerId, requesterId, score) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Rating failed");
 
-    // Show trust change
+    // Show inline trust change on the task card
     const beforePct = Math.round(data.trust_before * 100);
     const afterPct = Math.round(data.trust_after * 100);
     const arrow = afterPct >= beforePct ? "\u2191" : "\u2193";
-    alert("Rated " + Math.round(score * 10) + "/10. Trust: " + beforePct + "% " + arrow + " " + afterPct + "%");
+    const arrowClass = afterPct >= beforePct ? "arrow-up" : "arrow-down";
+    showTrustDelta(taskId, score, beforePct, afterPct, arrow, arrowClass);
 
     loadInbox();
     loadAgents();
+    loadActivity();
   } catch (err) {
-    alert("Error: " + err.message);
+    // Show error inline instead of alert
+    const card = document.querySelector(`[data-task-id="${taskId}"]`);
+    if (card) {
+      const msg = card.querySelector(".task-action") || card;
+      msg.innerHTML = '<div class="status-error" style="padding:6px;">Error: ' + esc(err.message) + '</div>';
+    }
+  }
+}
+
+function showTrustDelta(taskId, score, beforePct, afterPct, arrow, arrowClass) {
+  const card = document.querySelector('[data-task-id="' + taskId + '"]');
+  if (card) {
+    const action = card.querySelector(".task-action");
+    if (action) {
+      action.innerHTML = `
+        <div class="trust-delta-banner">
+          Rated <strong>${Math.round(score * 10)}/10</strong>
+          &nbsp;&mdash;&nbsp; Trust: ${beforePct}%
+          <span class="${arrowClass}">${arrow}</span>
+          ${afterPct}%
+        </div>`;
+    }
   }
 }
 
@@ -602,7 +647,15 @@ async function loadActivity() {
       } else if (e.status === "completed") {
         detail = `<strong>${esc(e.provider_name)}</strong> submitted result for <strong>${esc(e.requester_name)}</strong>`;
       } else if (e.status === "rated") {
-        detail = `<strong>${esc(e.requester_name)}</strong> rated <strong>${esc(e.provider_name)}</strong>: ${Math.round(e.rating * 10)}/10`;
+        let trustDelta = "";
+        if (e.trust_before != null && e.trust_after != null) {
+          const bPct = Math.round(e.trust_before * 100);
+          const aPct = Math.round(e.trust_after * 100);
+          const arrowCls = aPct >= bPct ? "arrow-up" : "arrow-down";
+          const arrowChar = aPct >= bPct ? "\u2191" : "\u2193";
+          trustDelta = ` &mdash; Trust: ${bPct}% <span class="${arrowCls}">${arrowChar}</span> ${aPct}%`;
+        }
+        detail = `<strong>${esc(e.requester_name)}</strong> rated <strong>${esc(e.provider_name)}</strong>: ${Math.round(e.rating * 10)}/10${trustDelta}`;
       }
       return `
         <div class="activity-row">

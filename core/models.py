@@ -111,6 +111,7 @@ class Task:
                  result: str = None,
                  rating: float = None, rated_by: str = None,
                  rated_at: str = None,
+                 trust_before: float = None, trust_after: float = None,
                  created_at: str = None, updated_at: str = None):
         self.task_id = task_id
         self.requester_id = requester_id
@@ -122,6 +123,8 @@ class Task:
         self.rating = rating          # 0.0-1.0 score given by requester
         self.rated_by = rated_by      # agent_id of who rated
         self.rated_at = rated_at      # ISO timestamp of rating
+        self.trust_before = trust_before  # provider trust before this rating
+        self.trust_after = trust_after    # provider trust after this rating
         now = datetime.now(timezone.utc).isoformat()
         self.created_at = created_at or now
         self.updated_at = updated_at or now
@@ -145,6 +148,10 @@ class Task:
             d["rated_by"] = self.rated_by
         if self.rated_at is not None:
             d["rated_at"] = self.rated_at
+        if self.trust_before is not None:
+            d["trust_before"] = self.trust_before
+        if self.trust_after is not None:
+            d["trust_after"] = self.trust_after
         return d
 
     @classmethod
@@ -160,6 +167,8 @@ class Task:
             rating=data.get("rating"),
             rated_by=data.get("rated_by"),
             rated_at=data.get("rated_at"),
+            trust_before=data.get("trust_before"),
+            trust_after=data.get("trust_after"),
             created_at=data.get("created_at"),
             updated_at=data.get("updated_at"),
         )

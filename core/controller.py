@@ -158,6 +158,8 @@ def submit_feedback(store: AgentStore, provider_id: str, score: float,
             task.rating = score
             task.rated_by = rated_by or task.requester_id
             task.rated_at = datetime.now(timezone.utc).isoformat()
+            task.trust_before = trust_before
+            task.trust_after = trust_after
             store.save_task(task)
             result["task"] = task.to_dict()
             result["requester_id"] = task.requester_id
