@@ -21,6 +21,7 @@
     { "src": "/api/submit-result", "dest": "/api/submit_result.py" },
     { "src": "/api/activity", "dest": "/api/activity.py" },
     { "src": "/api/reset", "dest": "/api/reset.py" },
+    { "src": "/api/vouch", "dest": "/api/vouch.py" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]
 }
