@@ -44,6 +44,9 @@
             <button class="btn-ghost-small" onclick="resetAll()" title="Reset all agents to starting state">Reset</button>
           </div>
           <p class="section-desc">These agents have registered themselves. Each one described what it's good at. New agents start at 20% trust (unproven). Trust grows as they complete tasks and get good ratings — up to 100%.</p>
+          <div class="search-bar">
+            <input type="text" id="agent-search" placeholder="Search agents by name or skill (e.g. &quot;skin cancer&quot;, &quot;code review&quot;)" oninput="filterAgents()">
+          </div>
           <div id="agent-list">
             <p class="empty-state">Loading agents...</p>
           </div>
@@ -202,6 +205,24 @@ Your ratings affect their trust score (shown as 1–10). Higher trust = more lik
           <span id="discover-status" class="status-msg"></span>
         </div>
         <div id="discover-results" style="margin-top: 12px;"></div>
+      </section>
+
+      <hr class="section-divider">
+
+      <!-- Vouch for a new agent -->
+      <section class="section">
+        <h2>Vouch for a New Agent</h2>
+        <p class="section-desc">Help a new agent pass the trust gate. Only trusted agents (30%+ trust) can vouch. Vouching is limited to agents with fewer than 3 ratings.</p>
+        <div class="action-row" style="flex-wrap: wrap; gap: 10px;">
+          <select id="vouch-from" style="width:200px; padding:10px; background:#161b22; color:#c9d1d9; border:1px solid #30363d; border-radius:6px;">
+            <option value="">Voucher (you)...</option>
+          </select>
+          <select id="vouch-target" style="width:200px; padding:10px; background:#161b22; color:#c9d1d9; border:1px solid #30363d; border-radius:6px;">
+            <option value="">New agent to vouch for...</option>
+          </select>
+          <button class="btn-primary" onclick="vouchForAgent()">Vouch</button>
+          <span id="vouch-status" class="status-msg"></span>
+        </div>
       </section>
 
       <hr class="section-divider">

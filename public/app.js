@@ -2,6 +2,8 @@
 
 const API = window.location.origin;
 
+let _allAgents = []; // cached for client-side filtering
+
 document.addEventListener("DOMContentLoaded", loadAgents);
 
 // ============================================================
@@ -36,7 +38,7 @@ async function loadAgents() {
   try {
     // Save current dropdown selections before refreshing
     const savedSelections = {};
-    for (const id of ["rate-agent", "delegate-requester", "delegate-provider", "inbox-agent"]) {
+    for (const id of ["rate-agent", "vouch-from", "vouch-target", "delegate-requester", "delegate-provider", "inbox-agent"]) {
       const el = document.getElementById(id);
       if (el) savedSelections[id] = el.value;
     }
@@ -44,9 +46,11 @@ async function loadAgents() {
     const res = await fetch(API + "/api/agents");
     if (!res.ok) throw new Error("Failed to load agents");
     const data = await res.json();
-    renderAgentList(data.agents);
+    _allAgents = data.agents || [];
+    filterAgents(); // render with current search filter
     renderRankings(data.agents);
     populateRateDropdown(data.agents);
+    populateVouchDropdowns(data.agents);
     populateTaskDropdowns(data.agents);
 
     // Restore dropdown selections
@@ -60,6 +64,22 @@ async function loadAgents() {
     document.getElementById("agent-list").innerHTML =
       '<p class="empty-state">Error loading agents: ' + esc(err.message) + '</p>';
   }
+}
+
+function filterAgents() {
+  const input = document.getElementById("agent-search");
+  const query = input ? input.value.trim().toLowerCase() : "";
+  if (!query) {
+    renderAgentList(_allAgents);
+    return;
+  }
+  const words = query.split(/\s+/).filter(w => w.length >= 2);
+  if (words.length === 0) { renderAgentList(_allAgents); return; }
+  const filtered = _allAgents.filter(a => {
+    const text = ((a.agent_name || "") + " " + (a.skill_md || "")).toLowerCase();
+    return words.some(w => text.includes(w));
+  });
+  renderAgentList(filtered);
 }
 
 function renderAgentList(agents) {
@@ -249,6 +269,66 @@ async function discoverAgents() {
   } catch (err) {
     status.textContent = "Error: " + err.message;
     resultsEl.innerHTML = "";
+  }
+}
+
+// ============================================================
+// 4b. VOUCH FOR A NEW AGENT
+// ============================================================
+
+function populateVouchDropdowns(agents) {
+  const fromEl = document.getElementById("vouch-from");
+  const targetEl = document.getElementById("vouch-target");
+  if (!fromEl || !targetEl) return;
+
+  fromEl.innerHTML = '<option value="">Voucher (you)...</option>';
+  targetEl.innerHTML = '<option value="">New agent to vouch for...</option>';
+
+  const sorted = [...agents].sort((a, b) => a.agent_name.localeCompare(b.agent_name));
+  for (const a of sorted) {
+    const ts = a.trust_score != null ? a.trust_score : a.success_rate;
+    // Vouchers must have 30%+ trust
+    if (ts >= 0.3) {
+      const opt = document.createElement("option");
+      opt.value = a.agent_id;
+      opt.textContent = a.agent_name + " (" + scoreNum(ts) + "%)";
+      fromEl.appendChild(opt);
+    }
+    // Targets must have fewer than 3 ratings
+    if (a.total_runs < 3) {
+      const opt = document.createElement("option");
+      opt.value = a.agent_id;
+      opt.textContent = a.agent_name + " (" + scoreNum(ts) + "%)";
+      targetEl.appendChild(opt);
+    }
+  }
+}
+
+async function vouchForAgent() {
+  const status = document.getElementById("vouch-status");
+  const voucherId = document.getElementById("vouch-from").value;
+  const targetId = document.getElementById("vouch-target").value;
+
+  if (!voucherId) { status.textContent = "Select a voucher agent."; return; }
+  if (!targetId) { status.textContent = "Select the new agent to vouch for."; return; }
+
+  status.textContent = "Vouching...";
+  try {
+    const res = await fetch(API + "/api/vouch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ voucher_id: voucherId, target_id: targetId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Vouch failed");
+
+    const beforePct = Math.round(data.trust_before * 100);
+    const afterPct = Math.round(data.trust_after * 100);
+    const arrow = afterPct >= beforePct ? "\u2191" : "\u2193";
+    status.textContent = "Vouched! Trust: " + beforePct + "% " + arrow + " " + afterPct + "%";
+    loadAgents();
+  } catch (err) {
+    status.textContent = "Error: " + err.message;
   }
 }
 

@@ -1,2 +1,6 @@
 upstash-redis
 pytest
+numpy
+pandas
+scikit-learn
+imbalanced-learn

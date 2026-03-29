@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.store import MemoryStore
 from core.fixtures import seed_store
-from core.controller import run_simulation, submit_feedback, validate_delegation, DEFAULT_TRUST_THRESHOLD
+from core.controller import run_simulation, submit_feedback, validate_delegation, vouch_for_agent, DEFAULT_TRUST_THRESHOLD
 
 # Global in-memory store seeded with demo agents
 store = MemoryStore()
@@ -63,6 +63,8 @@ class DevHandler(SimpleHTTPRequestHandler):
             self._api_delegate_task(body)
         elif parsed.path == "/api/submit-result":
             self._api_submit_result(body)
+        elif parsed.path == "/api/vouch":
+            self._api_vouch(body)
         else:
             self._json_error(404, "Not found")
 
@@ -125,6 +127,18 @@ class DevHandler(SimpleHTTPRequestHandler):
         seed_store(store)
         agents = store.list_all()
         self._json_response({"status": "reset", "agents": [a.to_dict() for a in agents]})
+
+    def _api_vouch(self, body):
+        try:
+            voucher_id = body.get("voucher_id")
+            target_id = body.get("target_id")
+            if not voucher_id or not target_id:
+                self._json_error(400, "voucher_id and target_id are required")
+                return
+            result = vouch_for_agent(store, voucher_id, target_id)
+            self._json_response(result)
+        except ValueError as e:
+            self._json_error(400, str(e))
 
     def _api_register_agent(self, body):
         from core.models import Agent

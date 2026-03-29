@@ -189,6 +189,54 @@ def submit_feedback(store: AgentStore, provider_id: str, score: float,
     return result
 
 
+def vouch_for_agent(store: AgentStore, voucher_id: str, target_id: str) -> dict:
+    """A trusted agent vouches for a new agent to help them pass the trust gate.
+
+    The vouch counts as a feedback score derived from the voucher's own trust:
+      vouch_score = 0.5 + voucher.trust_score * 0.4   (range: 0.58 to 0.9)
+
+    Constraints:
+    - Voucher must exist and have trust >= 0.3 (must be gate-passing themselves)
+    - Target must exist
+    - Cannot vouch for yourself
+    - Target must have fewer than 3 ratings (only helps new agents)
+    """
+    voucher = store.get(voucher_id)
+    if voucher is None:
+        raise ValueError(f"Voucher agent '{voucher_id}' not found")
+    if voucher.trust_score < DEFAULT_TRUST_THRESHOLD:
+        raise ValueError(
+            f"Voucher '{voucher_id}' has trust {voucher.trust_score:.2f}, "
+            f"which is below the gate threshold ({DEFAULT_TRUST_THRESHOLD}). "
+            f"Only trusted agents can vouch."
+        )
+    target = store.get(target_id)
+    if target is None:
+        raise ValueError(f"Target agent '{target_id}' not found")
+    if voucher_id == target_id:
+        raise ValueError("An agent cannot vouch for itself")
+    if target.total_runs >= 3:
+        raise ValueError(
+            f"Agent '{target_id}' already has {target.total_runs} ratings. "
+            f"Vouching is only for new agents with fewer than 3 ratings."
+        )
+
+    vouch_score = 0.5 + voucher.trust_score * 0.4
+    trust_before = target.trust_score
+    update_trust(target, vouch_score)
+    trust_after = target.trust_score
+    store.upsert(target)
+
+    return {
+        "status": "vouched",
+        "voucher": voucher.to_dict(),
+        "target": target.to_dict(),
+        "vouch_score": round(vouch_score, 4),
+        "trust_before": trust_before,
+        "trust_after": trust_after,
+    }
+
+
 def _find_providers(store: AgentStore, task_entry: dict, exclude_id: str) -> list:
     """Find agents whose skill_md matches any of the task keywords."""
     all_agents = store.list_all()

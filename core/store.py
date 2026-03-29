@@ -38,9 +38,9 @@ class AgentStore(ABC):
 
     @abstractmethod
     def discover(self, keyword: str, min_trust: float = None) -> list:
-        """Find agents whose skill_md contains keyword (case-insensitive).
-        Results are sorted by keyword relevance (occurrence count) first,
-        then by trust score.  Optionally filter by minimum trust score."""
+        """Find agents by multi-keyword search across skill_md and agent_name.
+        Query is split into words; an agent matches if ANY word appears.
+        Results sorted by total keyword hits then trust score."""
         ...
 
     @abstractmethod
@@ -80,15 +80,18 @@ class MemoryStore(AgentStore):
         return list(self._agents.values())
 
     def discover(self, keyword: str, min_trust: float = None) -> list:
-        keyword_lower = keyword.lower()
+        words = [w.lower() for w in keyword.strip().split() if len(w) >= 2]
+        if not words:
+            words = [keyword.strip().lower()]
         scored = []
         for agent in self._agents.values():
-            skill_lower = agent.skill_md.lower()
-            if keyword_lower in skill_lower:
-                if min_trust is not None and agent.trust_score < min_trust:
-                    continue
-                relevance = skill_lower.count(keyword_lower)
-                scored.append((agent, relevance))
+            searchable = (agent.skill_md + " " + agent.agent_name).lower()
+            relevance = sum(searchable.count(w) for w in words)
+            if relevance == 0:
+                continue
+            if min_trust is not None and agent.trust_score < min_trust:
+                continue
+            scored.append((agent, relevance))
         scored.sort(key=lambda x: (-x[1], -x[0].trust_score))
         return [agent for agent, _ in scored]
 
@@ -177,15 +180,18 @@ class RedisStore(AgentStore):
 
     def discover(self, keyword: str, min_trust: float = None) -> list:
         all_agents = self.list_all()
-        keyword_lower = keyword.lower()
+        words = [w.lower() for w in keyword.strip().split() if len(w) >= 2]
+        if not words:
+            words = [keyword.strip().lower()]
         scored = []
         for agent in all_agents:
-            skill_lower = agent.skill_md.lower()
-            if keyword_lower in skill_lower:
-                if min_trust is not None and agent.trust_score < min_trust:
-                    continue
-                relevance = skill_lower.count(keyword_lower)
-                scored.append((agent, relevance))
+            searchable = (agent.skill_md + " " + agent.agent_name).lower()
+            relevance = sum(searchable.count(w) for w in words)
+            if relevance == 0:
+                continue
+            if min_trust is not None and agent.trust_score < min_trust:
+                continue
+            scored.append((agent, relevance))
         scored.sort(key=lambda x: (-x[1], -x[0].trust_score))
         return [agent for agent, _ in scored]
 
