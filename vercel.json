@@ -19,6 +19,7 @@
     { "src": "/api/delegate-task", "dest": "/api/delegate_task.py" },
     { "src": "/api/tasks", "dest": "/api/tasks.py" },
     { "src": "/api/submit-result", "dest": "/api/submit_result.py" },
+    { "src": "/api/activity", "dest": "/api/activity.py" },
     { "src": "/api/reset", "dest": "/api/reset.py" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]
