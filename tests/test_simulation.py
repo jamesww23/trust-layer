@@ -1,7 +1,7 @@
 """Tests for simulation controller."""
 
 import pytest
-from core.models import Agent
+from core.models import Agent, Task
 from core.store import MemoryStore
 from core.controller import (
     run_simulation, update_trust, determine_outcome,
@@ -291,3 +291,120 @@ class TestTrustScoreComposite:
                       tasks_received=5, tasks_completed=0)
         no_tasks = Agent("a2", "Active", "Skill", success_rate=0.8, total_runs=10)
         assert agent.trust_score < no_tasks.trust_score
+
+
+class TestTaskLinkedFeedbackValidation:
+    """Regression tests for task-linked feedback validation in submit_feedback.
+
+    Key invariant: if task_id is provided and validation fails, NEITHER
+    the provider agent NOR the task should be mutated.
+    """
+
+    def _setup(self):
+        store = MemoryStore()
+        provider = _proven_agent("provider1", "Provider", "Skill", success_rate=0.7)
+        requester = _proven_agent("requester1", "Requester", "Skill", success_rate=0.5)
+        other = _proven_agent("other1", "Other Provider", "Skill", success_rate=0.6)
+        store.register(provider)
+        store.register(requester)
+        store.register(other)
+        return store
+
+    def _snapshot_agent(self, store, agent_id):
+        """Capture agent state for later comparison."""
+        a = store.get(agent_id)
+        return (a.success_rate, a.total_runs, a.trust_score)
+
+    def test_rating_task_belonging_to_another_provider_fails(self):
+        store = self._setup()
+        task = Task("t1", "requester1", "other1", "Do something")
+        task.status = "completed"
+        task.result = "done"
+        store.save_task(task)
+        before = self._snapshot_agent(store, "provider1")
+
+        with pytest.raises(ValueError, match="belongs to provider"):
+            submit_feedback(store, "provider1", 0.8, task_id="t1")
+
+        # Provider must be untouched
+        after = self._snapshot_agent(store, "provider1")
+        assert before == after
+        # Task must be untouched
+        saved = store.get_task("t1")
+        assert saved.status == "completed"
+        assert saved.rating is None
+
+    def test_rating_pending_task_fails(self):
+        store = self._setup()
+        task = Task("t1", "requester1", "provider1", "Do something")
+        store.save_task(task)
+        before = self._snapshot_agent(store, "provider1")
+
+        with pytest.raises(ValueError, match="still pending"):
+            submit_feedback(store, "provider1", 0.8, task_id="t1")
+
+        after = self._snapshot_agent(store, "provider1")
+        assert before == after
+        saved = store.get_task("t1")
+        assert saved.status == "pending"
+        assert saved.rating is None
+
+    def test_rating_already_rated_task_fails(self):
+        store = self._setup()
+        task = Task("t1", "requester1", "provider1", "Do something",
+                     status="rated", result="done", rating=0.7)
+        store.save_task(task)
+        before = self._snapshot_agent(store, "provider1")
+
+        with pytest.raises(ValueError, match="already been rated"):
+            submit_feedback(store, "provider1", 0.8, task_id="t1")
+
+        after = self._snapshot_agent(store, "provider1")
+        assert before == after
+        saved = store.get_task("t1")
+        assert saved.rating == 0.7  # original rating preserved
+
+    def test_rating_nonexistent_task_fails(self):
+        store = self._setup()
+        before = self._snapshot_agent(store, "provider1")
+
+        with pytest.raises(ValueError, match="not found"):
+            submit_feedback(store, "provider1", 0.8, task_id="no_such_task")
+
+        after = self._snapshot_agent(store, "provider1")
+        assert before == after
+
+    def test_rating_completed_task_for_correct_provider_succeeds(self):
+        store = self._setup()
+        task = Task("t1", "requester1", "provider1", "Do something")
+        task.status = "completed"
+        task.result = "analysis complete"
+        store.save_task(task)
+
+        result = submit_feedback(store, "provider1", 0.9,
+                                  task_id="t1", rated_by="requester1")
+
+        assert result["task"]["status"] == "rated"
+        assert result["task"]["rating"] == 0.9
+        assert result["task"]["rated_by"] == "requester1"
+        assert result["trust_before"] is not None
+        assert result["trust_after"] is not None
+        assert result["trust_after"] != result["trust_before"]
+        # Verify task persisted correctly
+        saved = store.get_task("t1")
+        assert saved.status == "rated"
+        assert saved.rating == 0.9
+        # Verify provider was updated
+        provider = store.get("provider1")
+        assert provider.total_runs == 11  # was 10, now 11
+
+    def test_standalone_feedback_without_task_still_works(self):
+        """Standalone rating (no task_id) should update trust as before."""
+        store = self._setup()
+        before = self._snapshot_agent(store, "provider1")
+
+        result = submit_feedback(store, "provider1", 0.9)
+
+        after = self._snapshot_agent(store, "provider1")
+        assert after != before  # trust changed
+        assert "task" not in result  # no task in response

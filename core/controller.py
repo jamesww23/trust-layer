@@ -137,6 +137,27 @@ def submit_feedback(store: AgentStore, provider_id: str, score: float,
     if agent is None:
         raise ValueError(f"Agent '{provider_id}' not found")
 
+    # If task_id provided, validate BEFORE any mutation
+    if task_id:
+        task = store.get_task(task_id)
+        if task is None:
+            raise ValueError(f"Task '{task_id}' not found")
+        if task.provider_id != provider_id:
+            raise ValueError(
+                f"Task '{task_id}' belongs to provider '{task.provider_id}', "
+                f"not '{provider_id}'. Cannot rate a task for a different provider."
+            )
+        if task.status == "pending":
+            raise ValueError(
+                f"Task '{task_id}' is still pending. "
+                f"Cannot rate a task before the provider submits a result."
+            )
+        if task.status == "rated":
+            raise ValueError(
+                f"Task '{task_id}' has already been rated."
+            )
+
+    # All validation passed — now mutate agent trust
     trust_before = agent.trust_score
     update_trust(agent, score)
     trust_after = agent.trust_score
@@ -150,19 +171,17 @@ def submit_feedback(store: AgentStore, provider_id: str, score: float,
         "rating": score,
     }
 
-    # If task_id provided, mark task as rated
+    # Mark task as rated (already validated above)
     if task_id:
-        task = store.get_task(task_id)
-        if task:
-            task.status = "rated"
-            task.rating = score
-            task.rated_by = rated_by or task.requester_id
-            task.rated_at = datetime.now(timezone.utc).isoformat()
-            task.trust_before = trust_before
-            task.trust_after = trust_after
-            store.save_task(task)
-            result["task"] = task.to_dict()
-            result["requester_id"] = task.requester_id
+        task.status = "rated"
+        task.rating = score
+        task.rated_by = rated_by or task.requester_id
+        task.rated_at = datetime.now(timezone.utc).isoformat()
+        task.trust_before = trust_before
+        task.trust_after = trust_after
+        store.save_task(task)
+        result["task"] = task.to_dict()
+        result["requester_id"] = task.requester_id
 
     if rated_by:
         result["rated_by"] = rated_by
