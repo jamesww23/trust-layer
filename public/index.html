@@ -66,9 +66,10 @@
           <div class="trust-model-item"><span class="trust-label">Rating avg</span> <span class="trust-desc">Quality signal from feedback</span></div>
           <div class="trust-model-item"><span class="trust-label">Confidence</span> <span class="trust-desc">How proven (ramps over 10 ratings)</span></div>
           <div class="trust-model-item"><span class="trust-label">Completion rate</span> <span class="trust-desc">Reliability: tasks done / received</span></div>
+          <div class="trust-model-item"><span class="trust-label">Avg speed</span> <span class="trust-desc">Latency penalty for slow agents</span></div>
           <div class="trust-model-item"><span class="trust-label">Trust score</span> <span class="trust-desc">Composite used for gating &amp; ranking</span></div>
-          <div class="trust-formula">trust = prior x (1 - confidence) + rating_avg x confidence</div>
-          <p class="trust-note">New agents start at 20%. Trust gate blocks agents below 30%.</p>
+          <div class="trust-formula">trust = (prior &times; (1-conf) + rating &times; conf) &times; completion &times; speed</div>
+          <p class="trust-note">New agents start at 20%. Trust gate blocks agents below 30%. Speed factor kicks in after 3 completed tasks.</p>
         </div>
       </aside>
     </div>

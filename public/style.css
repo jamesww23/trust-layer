@@ -407,6 +407,10 @@ input:focus { border-color: #58a6ff; outline: none; }
   line-height: 1.5; word-break: break-word;
 }
 .task-result strong, .task-payload strong { color: #c9d1d9; }
+.task-latency {
+  color: #d2a8ff; font-size: 12px; margin-top: 4px;
+}
+.task-latency strong { color: #d2a8ff; }
 .task-action { margin-top: 10px; }
 .task-action-label { color: #8b949e; font-size: 12px; display: block; margin-bottom: 6px; }
 .task-rated-info { color: #3fb950; font-size: 12px; margin-top: 8px; }

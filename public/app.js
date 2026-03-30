@@ -111,6 +111,7 @@ function renderAgentList(agents) {
           <span class="stat">Ratings: <strong>${a.total_runs}</strong></span>
           <span class="stat">Tasks: <strong>${a.tasks_completed || 0}/${a.tasks_received || 0}</strong></span>
           <span class="stat">Completion: <strong>${a.tasks_received > 0 ? ((a.completion_rate || 0) * 100).toFixed(0) + '%' : '—'}</strong></span>
+          <span class="stat">Avg speed: <strong>${a.tasks_completed > 0 && a.avg_latency_ms > 0 ? formatLatency(a.avg_latency_ms) : '—'}</strong></span>
           <span class="stat">Confidence: <strong>${((a.confidence || 0) * 100).toFixed(0)}%</strong></span>
           ${flaggedHtml}
         </div>
@@ -491,7 +492,7 @@ function renderSimResults(data) {
   html += "</tbody></table>";
 
   html += '<h3 class="final-title">Final Standings</h3>';
-  html += '<table class="sim-table"><thead><tr><th>#</th><th>Agent</th><th>Trust</th><th>Rating avg</th><th>Tasks</th><th>Completion</th><th>Confidence</th><th>Blocked</th></tr></thead><tbody>';
+  html += '<table class="sim-table"><thead><tr><th>#</th><th>Agent</th><th>Trust</th><th>Rating avg</th><th>Tasks</th><th>Completion</th><th>Avg Speed</th><th>Confidence</th><th>Blocked</th></tr></thead><tbody>';
   data.final_agents.forEach((a, i) => {
     const flaggedCell = a.flagged > 0
       ? `<span class="flagged-count">${a.flagged}</span>`
@@ -504,6 +505,7 @@ function renderSimResults(data) {
         <td>${a.total_runs > 0 ? (a.success_rate * 100).toFixed(0) + '%' : '—'}</td>
         <td>${a.tasks_completed || 0}/${a.tasks_received || 0}</td>
         <td>${a.tasks_received > 0 ? ((a.completion_rate || 0) * 100).toFixed(0) + '%' : '—'}</td>
+        <td>${a.tasks_completed > 0 && a.avg_latency_ms > 0 ? formatLatency(a.avg_latency_ms) : '—'}</td>
         <td>${((a.confidence || 0) * 100).toFixed(0)}%</td>
         <td>${flaggedCell}</td>
       </tr>
@@ -627,6 +629,7 @@ function renderTaskCard(t) {
       </div>
       ${t.payload ? '<div class="task-payload"><strong>Payload:</strong> ' + esc(t.payload.substring(0, 200)) + (t.payload.length > 200 ? '...' : '') + '</div>' : ''}
       ${t.result ? '<div class="task-result"><strong>Result:</strong> ' + esc(t.result.substring(0, 200)) + (t.result.length > 200 ? '...' : '') + '</div>' : ''}
+      ${t.latency_ms != null ? '<div class="task-latency">Completed in <strong>' + formatLatency(t.latency_ms) + '</strong></div>' : ''}
       ${actionsHtml}
     </div>
   `;
@@ -776,6 +779,12 @@ function toScoreBar(score) {
 
 function scoreNum(score) {
   return Math.round(score * 100);
+}
+
+function formatLatency(ms) {
+  if (ms == null || ms <= 0) return '—';
+  if (ms < 1000) return Math.round(ms) + 'ms';
+  return (ms / 1000).toFixed(1) + 's';
 }
 
 function esc(str) {

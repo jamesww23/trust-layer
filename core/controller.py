@@ -50,6 +50,23 @@ def update_trust(agent: Agent, feedback_score: float) -> float:
     return agent.success_rate
 
 
+def update_agent_latency(agent: Agent, latency_ms: float) -> None:
+    """Update agent's running average latency with a new observation.
+
+    Uses same running-average formula as update_trust:
+    new_avg = (old_avg * completed_count + new_latency) / (completed_count + 1)
+
+    Note: call this BEFORE incrementing tasks_completed.
+    """
+    completed = agent.tasks_completed  # count before this completion
+    if completed == 0:
+        agent.avg_latency_ms = latency_ms
+    else:
+        agent.avg_latency_ms = round(
+            (agent.avg_latency_ms * completed + latency_ms) / (completed + 1), 1
+        )
+
+
 def determine_outcome(provider: Agent) -> bool:
     """Determine interaction outcome with probability influenced by trust.
 
@@ -331,8 +348,12 @@ def run_simulation(store: AgentStore, rounds: int = 5,
         trust_before = provider.trust_score
         outcome = determine_outcome(provider)
 
-        # Track task completed (result submitted)
+        # Track task completed (result submitted) with simulated latency
         if outcome:
+            # Fake latency: higher trust → faster (1s-8s range)
+            fake_latency = random.uniform(800, 8000) * (1.2 - provider.trust_score)
+            fake_latency = max(500, min(10000, fake_latency))
+            update_agent_latency(provider, fake_latency)
             provider.tasks_completed += 1
 
         # --- 5. FEEDBACK ---

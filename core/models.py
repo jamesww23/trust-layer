@@ -14,6 +14,7 @@ class Agent:
                  success_rate: float = 0.5, total_runs: int = 0,
                  flagged: int = 0,
                  tasks_received: int = 0, tasks_completed: int = 0,
+                 avg_latency_ms: float = 0.0,
                  created_at: str = None, updated_at: str = None):
         if not agent_id or not agent_id.strip():
             raise ValueError("agent_id cannot be empty")
@@ -29,6 +30,7 @@ class Agent:
         self.flagged = flagged             # times rejected by trust gate
         self.tasks_received = tasks_received
         self.tasks_completed = tasks_completed
+        self.avg_latency_ms = avg_latency_ms  # average task completion time in ms
         now = datetime.now(timezone.utc).isoformat()
         self.created_at = created_at or now
         self.updated_at = updated_at or now
@@ -46,15 +48,33 @@ class Agent:
         return self.tasks_completed / self.tasks_received
 
     @property
+    def latency_score(self) -> float:
+        """Speed factor (0.0-1.0). Lower latency → higher score.
+
+        Maps avg_latency_ms to a 0-1 score using a sigmoid-like curve:
+        - 0ms (or no data) → 1.0 (neutral / no penalty)
+        - 1000ms → ~0.95
+        - 3000ms → ~0.75
+        - 5000ms → ~0.5
+        - 10000ms → ~0.17
+        """
+        if self.avg_latency_ms <= 0 or self.tasks_completed == 0:
+            return 1.0  # no data yet — neutral
+        # Exponential decay: score = e^(-latency / 7000)
+        import math
+        return round(math.exp(-self.avg_latency_ms / 7000), 4)
+
+    @property
     def trust_score(self) -> float:
-        """Composite trust score factoring in rating, experience, and completion.
+        """Composite trust score factoring in rating, experience, completion, and speed.
 
         trust = prior * (1 - confidence) + rating_avg * confidence
-        Then boosted/penalized by completion rate if they have tasks.
+        Then boosted/penalized by completion rate and latency if they have tasks.
 
         - 0 ratings: trust = 0.2 (unproven)
         - 5 ratings at 0.8 avg: trust ≈ 0.5
         - 10+ ratings at 0.8 avg: trust = 0.8
+        - Slow agents get penalized via latency_score
         """
         base = self.PRIOR_TRUST * (1 - self.confidence) + self.success_rate * self.confidence
 
@@ -62,6 +82,11 @@ class Agent:
         if self.tasks_received >= 3:
             completion_factor = 0.8 + 0.2 * self.completion_rate  # 0.8 to 1.0
             base *= completion_factor
+
+        # Latency factor: penalize slow agents (only if they have completed tasks)
+        if self.tasks_completed >= 3:
+            latency_factor = 0.85 + 0.15 * self.latency_score  # 0.85 to 1.0
+            base *= latency_factor
 
         return round(max(0.0, min(1.0, base)), 4)
 
@@ -76,6 +101,8 @@ class Agent:
             "flagged": self.flagged,
             "tasks_received": self.tasks_received,
             "tasks_completed": self.tasks_completed,
+            "avg_latency_ms": round(self.avg_latency_ms, 0),
+            "latency_score": self.latency_score,
             "completion_rate": round(self.completion_rate, 4),
             "confidence": round(self.confidence, 4),
             "created_at": self.created_at,
@@ -93,6 +120,7 @@ class Agent:
             flagged=data.get("flagged", 0),
             tasks_received=data.get("tasks_received", 0),
             tasks_completed=data.get("tasks_completed", 0),
+            avg_latency_ms=data.get("avg_latency_ms", 0.0),
             created_at=data.get("created_at"),
             updated_at=data.get("updated_at"),
         )
@@ -109,6 +137,7 @@ class Task:
                  description: str, payload: str = None,
                  status: str = "pending",
                  result: str = None,
+                 completed_at: str = None, latency_ms: float = None,
                  rating: float = None, rated_by: str = None,
                  rated_at: str = None,
                  trust_before: float = None, trust_after: float = None,
@@ -120,6 +149,8 @@ class Task:
         self.payload = payload  # actual work content for the provider
         self.status = status  # pending, completed, rated
         self.result = result
+        self.completed_at = completed_at  # ISO timestamp when result submitted
+        self.latency_ms = latency_ms      # time from delegation to completion in ms
         self.rating = rating          # 0.0-1.0 score given by requester
         self.rated_by = rated_by      # agent_id of who rated
         self.rated_at = rated_at      # ISO timestamp of rating
@@ -142,6 +173,10 @@ class Task:
         }
         if self.payload is not None:
             d["payload"] = self.payload
+        if self.completed_at is not None:
+            d["completed_at"] = self.completed_at
+        if self.latency_ms is not None:
+            d["latency_ms"] = round(self.latency_ms, 0)
         if self.rating is not None:
             d["rating"] = self.rating
         if self.rated_by is not None:
@@ -164,6 +199,8 @@ class Task:
             payload=data.get("payload"),
             status=data.get("status", "pending"),
             result=data.get("result"),
+            completed_at=data.get("completed_at"),
+            latency_ms=data.get("latency_ms"),
             rating=data.get("rating"),
             rated_by=data.get("rated_by"),
             rated_at=data.get("rated_at"),

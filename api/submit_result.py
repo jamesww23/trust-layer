@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.store import RedisStore
+from core.controller import update_agent_latency
 
 
 class handler(BaseHTTPRequestHandler):
@@ -51,13 +52,20 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             # Update the task with the result
+            from datetime import datetime, timezone
             task.status = "completed"
             task.result = result
+            task.completed_at = datetime.now(timezone.utc).isoformat()
+            # Compute real latency from delegation to completion
+            created = datetime.fromisoformat(task.created_at)
+            completed = datetime.fromisoformat(task.completed_at)
+            task.latency_ms = round((completed - created).total_seconds() * 1000, 1)
             store.save_task(task)
 
-            # Track completion on the provider agent
+            # Track completion and latency on the provider agent
             provider = store.get(task.provider_id)
             if provider:
+                update_agent_latency(provider, task.latency_ms)
                 provider.tasks_completed += 1
                 store.upsert(provider)
 

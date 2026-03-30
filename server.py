@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.store import MemoryStore
 from core.fixtures import seed_store
-from core.controller import run_simulation, submit_feedback, validate_delegation, vouch_for_agent, DEFAULT_TRUST_THRESHOLD
+from core.controller import run_simulation, submit_feedback, validate_delegation, vouch_for_agent, update_agent_latency, DEFAULT_TRUST_THRESHOLD
 
 # Global in-memory store seeded with demo agents
 store = MemoryStore()
@@ -219,11 +219,18 @@ class DevHandler(SimpleHTTPRequestHandler):
             self._json_error(404, f"Task '{task_id}' not found"); return
         if task.status in ("completed", "rated"):
             self._json_error(400, "Task already completed"); return
+        from datetime import datetime, timezone
         task.status = "completed"
         task.result = result
+        task.completed_at = datetime.now(timezone.utc).isoformat()
+        # Compute real latency from delegation to completion
+        created = datetime.fromisoformat(task.created_at)
+        completed = datetime.fromisoformat(task.completed_at)
+        task.latency_ms = round((completed - created).total_seconds() * 1000, 1)
         store.save_task(task)
         provider = store.get(task.provider_id)
         if provider:
+            update_agent_latency(provider, task.latency_ms)
             provider.tasks_completed += 1
             store.upsert(provider)
         self._json_response({
