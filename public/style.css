@@ -451,6 +451,7 @@ input:focus { border-color: #58a6ff; outline: none; }
   border: 1px solid #21262d; border-radius: 6px;
   margin-bottom: 6px;
 }
+.activity-time { color: #484f58; font-size: 11px; white-space: nowrap; min-width: 140px; }
 .activity-detail { color: #c9d1d9; font-size: 13px; flex: 1; }
 .activity-detail strong { color: #58a6ff; }
 .activity-desc {

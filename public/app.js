@@ -740,8 +740,11 @@ async function loadActivity() {
         }
         detail = `<strong>${esc(e.requester_name)}</strong> rated <strong>${esc(e.provider_name)}</strong>: ${Math.round(e.rating * 10)}/10${trustDelta}`;
       }
+      const ts = e.updated_at || e.created_at;
+      const timeStr = ts ? new Date(ts).toLocaleString() : "";
       return `
         <div class="activity-row">
+          <span class="activity-time">${timeStr}</span>
           <span class="task-status ${statusClass}">${e.status}</span>
           <span class="activity-detail">${detail}</span>
           <span class="activity-desc">${esc(e.description)}</span>
