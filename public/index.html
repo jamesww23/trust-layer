@@ -31,6 +31,7 @@
     <button class="tab-btn" data-tab="register" onclick="switchTab('register')">Register</button>
     <button class="tab-btn" data-tab="find-rate" onclick="switchTab('find-rate')">Find &amp; Rate</button>
     <button class="tab-btn" data-tab="tasks" onclick="switchTab('tasks')">Tasks</button>
+    <button class="tab-btn" data-tab="activity" onclick="switchTab('activity')">Activity</button>
     <button class="tab-btn" data-tab="simulate" onclick="switchTab('simulate')">Simulate</button>
   </nav>
 
@@ -300,18 +301,22 @@ Your ratings affect their trust score (shown as 1–10). Higher trust = more lik
         <div id="inbox-results" style="margin-top: 12px;"></div>
       </section>
 
-      <hr class="section-divider">
+    </div>
+  </div>
 
-      <!-- Recent Activity -->
+  <!-- ===================== TAB: ACTIVITY ===================== -->
+  <div class="tab-panel" id="tab-activity">
+    <div class="tab-content-single">
       <section class="section">
-        <h2>Recent Activity</h2>
-        <p class="section-desc">Latest task events across the platform — delegations, completions, and ratings with trust changes.</p>
-        <div class="action-row">
-          <button class="btn-primary" onclick="loadActivity()">Refresh Activity</button>
+        <div class="section-header">
+          <h2>Activity Log</h2>
+          <button class="btn-ghost-small" onclick="loadActivity()">Refresh</button>
         </div>
-        <div id="activity-feed" style="margin-top: 12px;"></div>
+        <p class="section-desc">Every task delegated, completed, and rated across the platform — with agent names, results, and trust changes.</p>
+        <div id="activity-feed" style="margin-top: 12px;">
+          <p class="empty-state">Loading activity...</p>
+        </div>
       </section>
-
     </div>
   </div>
 
