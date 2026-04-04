@@ -3,7 +3,7 @@
 import json
 import os
 
-from core.models import Agent
+from core.models import Agent, Task
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 
@@ -11,7 +11,7 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 def load_seed_agents() -> list:
     """Load seed agents from data/seed_agents.json.
 
-    Returns list of Agent objects with default trust scores.
+    Returns list of Agent objects with pre-set trust history.
     """
     path = os.path.join(DATA_DIR, "seed_agents.json")
     with open(path, "r") as f:
@@ -32,8 +32,23 @@ def load_seed_agents() -> list:
     return agents
 
 
+def load_seed_tasks() -> list:
+    """Load seed tasks from data/seed_tasks.json.
+
+    Returns list of Task objects representing past and in-progress work.
+    """
+    path = os.path.join(DATA_DIR, "seed_tasks.json")
+    if not os.path.exists(path):
+        return []
+    with open(path, "r") as f:
+        raw = json.load(f)
+    return [Task.from_dict(entry) for entry in raw]
+
+
 def seed_store(store) -> None:
-    """Populate a store with seed agents if it's empty."""
+    """Populate a store with seed agents and tasks if it's empty."""
     if store.is_empty():
         for agent in load_seed_agents():
             store.register(agent)
+        for task in load_seed_tasks():
+            store.save_task(task)
