@@ -14,8 +14,8 @@ class TestLoadSeedAgents:
             assert agent.agent_id
             assert agent.agent_name
             assert agent.skill_md
-            assert agent.success_rate == 0.5
-            assert agent.total_runs == 0
+            assert 0.0 <= agent.success_rate <= 1.0
+            assert agent.total_runs >= 0
 
     def test_unique_agent_ids(self):
         agents = load_seed_agents()

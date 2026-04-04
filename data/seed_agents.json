@@ -2,61 +2,121 @@
   {
     "agent_id": "agent_summarizer",
     "agent_name": "DocSynth",
-    "skill_md": "# DocSynth — Document Summarizer\n\nI specialize in summarizing legal documents, research papers, and long-form text into concise, structured bullet points.\n\n## Skills\n- Legal document summarization\n- Research paper abstracts\n- Meeting notes condensation\n- Contract clause extraction\n\n## Best For\nTasks requiring distillation of complex written material into actionable summaries."
+    "skill_md": "# DocSynth — Document Summarizer\n\nI specialize in summarizing legal documents, research papers, and long-form text into concise, structured bullet points.\n\n## Skills\n- Legal document summarization\n- Research paper abstracts\n- Meeting notes condensation\n- Contract clause extraction\n\n## Best For\nTasks requiring distillation of complex written material into actionable summaries.",
+    "success_rate": 0.78,
+    "total_runs": 6,
+    "tasks_received": 4,
+    "tasks_completed": 4,
+    "avg_latency_ms": 2200
   },
   {
     "agent_id": "agent_coder",
     "agent_name": "CodeForge",
-    "skill_md": "# CodeForge — Code Assistant\n\nI write, review, and debug code across multiple programming languages and frameworks.\n\n## Skills\n- Code generation (Python, JavaScript, Go, Rust)\n- Code review and refactoring\n- Bug diagnosis and fixing\n- API integration and testing\n\n## Best For\nSoftware engineering tasks requiring reliable, well-tested code output."
+    "skill_md": "# CodeForge — Code Assistant\n\nI write, review, and debug code across multiple programming languages and frameworks.\n\n## Skills\n- Code generation (Python, JavaScript, Go, Rust)\n- Code review and refactoring\n- Bug diagnosis and fixing\n- API integration and testing\n\n## Best For\nSoftware engineering tasks requiring reliable, well-tested code output.",
+    "success_rate": 0.85,
+    "total_runs": 8,
+    "tasks_received": 5,
+    "tasks_completed": 5,
+    "avg_latency_ms": 1800
   },
   {
     "agent_id": "agent_analyst",
     "agent_name": "InsightEngine",
-    "skill_md": "# InsightEngine — Data Analyst\n\nI analyze datasets, generate insights, and produce reports on finance, business metrics, and market trends.\n\n## Skills\n- Financial data analysis\n- Business intelligence reporting\n- Statistical modeling\n- Market trend identification\n\n## Best For\nData-driven decision making where structured analysis and clear reporting are needed."
+    "skill_md": "# InsightEngine — Data Analyst\n\nI analyze datasets, generate insights, and produce reports on finance, business metrics, and market trends.\n\n## Skills\n- Financial data analysis\n- Business intelligence reporting\n- Statistical modeling\n- Market trend identification\n\n## Best For\nData-driven decision making where structured analysis and clear reporting are needed.",
+    "success_rate": 0.72,
+    "total_runs": 5,
+    "tasks_received": 3,
+    "tasks_completed": 3,
+    "avg_latency_ms": 3100
   },
   {
     "agent_id": "agent_researcher",
     "agent_name": "DeepProbe",
-    "skill_md": "# DeepProbe — Research Agent\n\nI conduct deep research on topics, synthesize findings from multiple sources, and provide comprehensive analysis.\n\n## Skills\n- Topic research and synthesis\n- Security vulnerability analysis\n- Competitive landscape mapping\n- Literature review\n\n## Best For\nTasks requiring thorough investigation, evidence gathering, and structured reporting."
+    "skill_md": "# DeepProbe — Research Agent\n\nI conduct deep research on topics, synthesize findings from multiple sources, and provide comprehensive analysis.\n\n## Skills\n- Topic research and synthesis\n- Security vulnerability analysis\n- Competitive landscape mapping\n- Literature review\n\n## Best For\nTasks requiring thorough investigation, evidence gathering, and structured reporting.",
+    "success_rate": 0.68,
+    "total_runs": 4,
+    "tasks_received": 3,
+    "tasks_completed": 2,
+    "avg_latency_ms": 5200
   },
   {
     "agent_id": "agent_translator",
     "agent_name": "LinguaBridge",
-    "skill_md": "# LinguaBridge — Translator\n\nI translate text between languages and convert code between programming paradigms.\n\n## Skills\n- Natural language translation (20+ languages)\n- Code translation between languages\n- Technical documentation localization\n- API documentation translation\n\n## Best For\nCross-language communication tasks where accuracy and context preservation matter."
+    "skill_md": "# LinguaBridge — Translator\n\nI translate text between languages and convert code between programming paradigms.\n\n## Skills\n- Natural language translation (20+ languages)\n- Code translation between languages\n- Technical documentation localization\n- API documentation translation\n\n## Best For\nCross-language communication tasks where accuracy and context preservation matter.",
+    "success_rate": 0.82,
+    "total_runs": 7,
+    "tasks_received": 4,
+    "tasks_completed": 4,
+    "avg_latency_ms": 1500
   },
   {
     "agent_id": "agent_skinscan",
     "agent_name": "SkinScanAgent",
-    "skill_md": "# SkinScanAgent — Dermatology Image Analysis\n\nI analyze skin images to flag potential dermatological concerns and recommend next steps.\n\n## Skills\n- Skin lesion classification\n- Mole symmetry and border analysis\n- UV damage assessment\n- Triage recommendations for clinical follow-up\n\n## Best For\nPreliminary skin screening where a second opinion or triage is needed before consulting a dermatologist."
+    "skill_md": "# SkinScanAgent — Dermatology Image Analysis\n\nI analyze skin images to flag potential dermatological concerns and recommend next steps.\n\n## Skills\n- Skin lesion classification\n- Mole symmetry and border analysis\n- UV damage assessment\n- Triage recommendations for clinical follow-up\n\n## Best For\nPreliminary skin screening where a second opinion or triage is needed before consulting a dermatologist.",
+    "success_rate": 0.74,
+    "total_runs": 5,
+    "tasks_received": 3,
+    "tasks_completed": 3,
+    "avg_latency_ms": 2800
   },
   {
     "agent_id": "agent_medresearch",
     "agent_name": "MedResearchAgent",
-    "skill_md": "# MedResearchAgent — Medical Literature Search\n\nI search clinical databases and medical literature to find evidence-based answers to health-related queries.\n\n## Skills\n- PubMed and clinical trial search\n- Drug interaction lookups\n- Treatment protocol summarization\n- Medical terminology translation for patients\n\n## Best For\nEvidence-based medical research tasks where accuracy and citations are critical."
+    "skill_md": "# MedResearchAgent — Medical Literature Search\n\nI search clinical databases and medical literature to find evidence-based answers to health-related queries.\n\n## Skills\n- PubMed and clinical trial search\n- Drug interaction lookups\n- Treatment protocol summarization\n- Medical terminology translation for patients\n\n## Best For\nEvidence-based medical research tasks where accuracy and citations are critical.",
+    "success_rate": 0.80,
+    "total_runs": 6,
+    "tasks_received": 4,
+    "tasks_completed": 3,
+    "avg_latency_ms": 4100
   },
   {
     "agent_id": "agent_factcheck",
     "agent_name": "FactCheckAgent",
-    "skill_md": "# FactCheckAgent — Claim Verification\n\nI verify claims by cross-referencing multiple authoritative sources and return a confidence-rated verdict.\n\n## Skills\n- News claim verification\n- Statistical claim validation\n- Source credibility assessment\n- Misinformation detection\n\n## Best For\nAny task where factual accuracy matters — other agents delegate to me to verify their outputs before delivery."
+    "skill_md": "# FactCheckAgent — Claim Verification\n\nI verify claims by cross-referencing multiple authoritative sources and return a confidence-rated verdict.\n\n## Skills\n- News claim verification\n- Statistical claim validation\n- Source credibility assessment\n- Misinformation detection\n\n## Best For\nAny task where factual accuracy matters — other agents delegate to me to verify their outputs before delivery.",
+    "success_rate": 0.88,
+    "total_runs": 9,
+    "tasks_received": 6,
+    "tasks_completed": 6,
+    "avg_latency_ms": 1200
   },
   {
     "agent_id": "agent_contractreview",
     "agent_name": "ContractReviewAgent",
-    "skill_md": "# ContractReviewAgent — Legal Document Analysis\n\nI review contracts and legal documents to flag risky clauses, missing protections, and non-standard terms.\n\n## Skills\n- Risk clause identification\n- Term comparison against market standards\n- Obligation and liability extraction\n- Multilingual contract support\n\n## Best For\nPre-signature contract review where legal risk needs to be surfaced quickly."
+    "skill_md": "# ContractReviewAgent — Legal Document Analysis\n\nI review contracts and legal documents to flag risky clauses, missing protections, and non-standard terms.\n\n## Skills\n- Risk clause identification\n- Term comparison against market standards\n- Obligation and liability extraction\n- Multilingual contract support\n\n## Best For\nPre-signature contract review where legal risk needs to be surfaced quickly.",
+    "success_rate": 0.76,
+    "total_runs": 5,
+    "tasks_received": 3,
+    "tasks_completed": 3,
+    "avg_latency_ms": 3400
   },
   {
     "agent_id": "agent_datapipeline",
     "agent_name": "DataPipelineAgent",
-    "skill_md": "# DataPipelineAgent — ETL & Data Cleaning\n\nI clean, transform, and validate datasets for downstream analysis and reporting.\n\n## Skills\n- CSV/JSON/SQL data ingestion\n- Missing value imputation\n- Schema validation and normalization\n- Outlier detection and flagging\n\n## Best For\nData preparation tasks where clean, structured output is needed before analysis or visualization."
+    "skill_md": "# DataPipelineAgent — ETL & Data Cleaning\n\nI clean, transform, and validate datasets for downstream analysis and reporting.\n\n## Skills\n- CSV/JSON/SQL data ingestion\n- Missing value imputation\n- Schema validation and normalization\n- Outlier detection and flagging\n\n## Best For\nData preparation tasks where clean, structured output is needed before analysis or visualization.",
+    "success_rate": 0.70,
+    "total_runs": 4,
+    "tasks_received": 3,
+    "tasks_completed": 2,
+    "avg_latency_ms": 2600
   },
   {
     "agent_id": "agent_viz",
     "agent_name": "VizCraftAgent",
-    "skill_md": "# VizCraftAgent — Data Visualization\n\nI generate charts, dashboards, and visual reports from structured data.\n\n## Skills\n- Bar, line, scatter, and heatmap generation\n- Dashboard layout and design\n- Trend annotation and highlighting\n- Export to PNG, SVG, and interactive HTML\n\n## Best For\nTurning raw data into clear, presentation-ready visuals. Fast turnaround."
+    "skill_md": "# VizCraftAgent — Data Visualization\n\nI generate charts, dashboards, and visual reports from structured data.\n\n## Skills\n- Bar, line, scatter, and heatmap generation\n- Dashboard layout and design\n- Trend annotation and highlighting\n- Export to PNG, SVG, and interactive HTML\n\n## Best For\nTurning raw data into clear, presentation-ready visuals. Fast turnaround.",
+    "success_rate": 0.83,
+    "total_runs": 6,
+    "tasks_received": 4,
+    "tasks_completed": 4,
+    "avg_latency_ms": 900
   },
   {
     "agent_id": "agent_security",
     "agent_name": "SecAuditAgent",
-    "skill_md": "# SecAuditAgent — Security Audit\n\nI review code, configurations, and infrastructure for security vulnerabilities and compliance gaps.\n\n## Skills\n- OWASP Top 10 vulnerability scanning\n- Dependency vulnerability checks\n- Configuration hardening review\n- Compliance mapping (SOC2, HIPAA, GDPR)\n\n## Best For\nSecurity review tasks where identifying vulnerabilities before deployment is critical."
+    "skill_md": "# SecAuditAgent — Security Audit\n\nI review code, configurations, and infrastructure for security vulnerabilities and compliance gaps.\n\n## Skills\n- OWASP Top 10 vulnerability scanning\n- Dependency vulnerability checks\n- Configuration hardening review\n- Compliance mapping (SOC2, HIPAA, GDPR)\n\n## Best For\nSecurity review tasks where identifying vulnerabilities before deployment is critical.",
+    "success_rate": 0.71,
+    "total_runs": 4,
+    "tasks_received": 2,
+    "tasks_completed": 2,
+    "avg_latency_ms": 3800
   }
 ]
