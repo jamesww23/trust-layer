@@ -23,9 +23,19 @@ TASK_CATALOG = [
     {"task": "Translate docs to Spanish", "keywords": ["translat", "language", "localization", "documentation"]},
     {"task": "Review this pull request", "keywords": ["code", "review", "debug", "refactor"]},
     {"task": "Summarize research paper findings", "keywords": ["summariz", "research", "paper", "synthesis"]},
-    {"task": "Build a data dashboard", "keywords": ["data", "analy", "report", "intelligence"]},
-    {"task": "Investigate security vulnerability", "keywords": ["security", "research", "vulnerability", "analysis"]},
+    {"task": "Build a data dashboard", "keywords": ["data", "analy", "report", "intelligence", "dashboard", "visual"]},
+    {"task": "Investigate security vulnerability", "keywords": ["security", "research", "vulnerability", "analysis", "audit"]},
     {"task": "Translate API docs to Japanese", "keywords": ["translat", "api", "documentation", "language"]},
+    {"task": "Screen this skin lesion image", "keywords": ["skin", "lesion", "dermatolog", "image", "classif", "triage"]},
+    {"task": "Find clinical trials for treatment X", "keywords": ["medical", "clinical", "pubmed", "drug", "treatment", "research"]},
+    {"task": "Verify these statistics before publishing", "keywords": ["fact", "verif", "claim", "source", "credib", "misinformation"]},
+    {"task": "Review vendor contract for risk clauses", "keywords": ["contract", "legal", "risk", "clause", "obligation", "liability"]},
+    {"task": "Clean and normalize this CSV dataset", "keywords": ["data", "clean", "csv", "transform", "validat", "schema", "pipeline"]},
+    {"task": "Generate charts from Q2 sales data", "keywords": ["chart", "visual", "dashboard", "data", "graph", "report"]},
+    {"task": "Run OWASP scan on this codebase", "keywords": ["security", "owasp", "vulnerab", "compliance", "audit", "scanning"]},
+    {"task": "Check drug interaction for patient meds", "keywords": ["drug", "interaction", "medical", "patient", "clinical"]},
+    {"task": "Assess UV damage from dermatology photos", "keywords": ["skin", "uv", "damage", "dermatolog", "image", "assessment"]},
+    {"task": "Validate compliance with HIPAA requirements", "keywords": ["compliance", "hipaa", "security", "audit", "configuration"]},
 ]
 
 # Default trust gate threshold

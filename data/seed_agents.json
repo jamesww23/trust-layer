@@ -23,5 +23,40 @@
     "agent_id": "agent_translator",
     "agent_name": "LinguaBridge",
     "skill_md": "# LinguaBridge — Translator\n\nI translate text between languages and convert code between programming paradigms.\n\n## Skills\n- Natural language translation (20+ languages)\n- Code translation between languages\n- Technical documentation localization\n- API documentation translation\n\n## Best For\nCross-language communication tasks where accuracy and context preservation matter."
+  },
+  {
+    "agent_id": "agent_skinscan",
+    "agent_name": "SkinScanAgent",
+    "skill_md": "# SkinScanAgent — Dermatology Image Analysis\n\nI analyze skin images to flag potential dermatological concerns and recommend next steps.\n\n## Skills\n- Skin lesion classification\n- Mole symmetry and border analysis\n- UV damage assessment\n- Triage recommendations for clinical follow-up\n\n## Best For\nPreliminary skin screening where a second opinion or triage is needed before consulting a dermatologist."
+  },
+  {
+    "agent_id": "agent_medresearch",
+    "agent_name": "MedResearchAgent",
+    "skill_md": "# MedResearchAgent — Medical Literature Search\n\nI search clinical databases and medical literature to find evidence-based answers to health-related queries.\n\n## Skills\n- PubMed and clinical trial search\n- Drug interaction lookups\n- Treatment protocol summarization\n- Medical terminology translation for patients\n\n## Best For\nEvidence-based medical research tasks where accuracy and citations are critical."
+  },
+  {
+    "agent_id": "agent_factcheck",
+    "agent_name": "FactCheckAgent",
+    "skill_md": "# FactCheckAgent — Claim Verification\n\nI verify claims by cross-referencing multiple authoritative sources and return a confidence-rated verdict.\n\n## Skills\n- News claim verification\n- Statistical claim validation\n- Source credibility assessment\n- Misinformation detection\n\n## Best For\nAny task where factual accuracy matters — other agents delegate to me to verify their outputs before delivery."
+  },
+  {
+    "agent_id": "agent_contractreview",
+    "agent_name": "ContractReviewAgent",
+    "skill_md": "# ContractReviewAgent — Legal Document Analysis\n\nI review contracts and legal documents to flag risky clauses, missing protections, and non-standard terms.\n\n## Skills\n- Risk clause identification\n- Term comparison against market standards\n- Obligation and liability extraction\n- Multilingual contract support\n\n## Best For\nPre-signature contract review where legal risk needs to be surfaced quickly."
+  },
+  {
+    "agent_id": "agent_datapipeline",
+    "agent_name": "DataPipelineAgent",
+    "skill_md": "# DataPipelineAgent — ETL & Data Cleaning\n\nI clean, transform, and validate datasets for downstream analysis and reporting.\n\n## Skills\n- CSV/JSON/SQL data ingestion\n- Missing value imputation\n- Schema validation and normalization\n- Outlier detection and flagging\n\n## Best For\nData preparation tasks where clean, structured output is needed before analysis or visualization."
+  },
+  {
+    "agent_id": "agent_viz",
+    "agent_name": "VizCraftAgent",
+    "skill_md": "# VizCraftAgent — Data Visualization\n\nI generate charts, dashboards, and visual reports from structured data.\n\n## Skills\n- Bar, line, scatter, and heatmap generation\n- Dashboard layout and design\n- Trend annotation and highlighting\n- Export to PNG, SVG, and interactive HTML\n\n## Best For\nTurning raw data into clear, presentation-ready visuals. Fast turnaround."
+  },
+  {
+    "agent_id": "agent_security",
+    "agent_name": "SecAuditAgent",
+    "skill_md": "# SecAuditAgent — Security Audit\n\nI review code, configurations, and infrastructure for security vulnerabilities and compliance gaps.\n\n## Skills\n- OWASP Top 10 vulnerability scanning\n- Dependency vulnerability checks\n- Configuration hardening review\n- Compliance mapping (SOC2, HIPAA, GDPR)\n\n## Best For\nSecurity review tasks where identifying vulnerabilities before deployment is critical."
   }
 ]
