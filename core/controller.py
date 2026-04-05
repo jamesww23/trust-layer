@@ -42,21 +42,42 @@ TASK_CATALOG = [
 DEFAULT_TRUST_THRESHOLD = 0.3
 
 
-def update_trust(agent: Agent, feedback_score: float) -> float:
-    """Update agent trust score using the requester's feedback score.
+def update_trust(agent: Agent, feedback_score: float,
+                 requester_trust: float = 0.5,
+                 task_description: str = "") -> float:
+    """Update agent trust using the 4-signal formula inputs.
 
-    The feedback score (0.0–1.0) is the signal from the requester after
-    evaluating the outcome.  This is the value that enters the running
-    average so that the full path is: Outcome → Feedback → Registry Update.
+    Stores the individual rating + requester weight so the WFS (Weighted
+    Feedback Score) can be computed. Also updates the specialization score
+    (SS) from the task description vs skill_md keyword overlap.
 
-    new_success_rate = (old * total_runs + feedback_score) / (total_runs + 1)
+    Keeps a legacy running average (success_rate) for backward compatibility.
 
     Returns the new success_rate.
     """
+    from core.scoring import compute_ss
+
+    # Legacy running average (backward compat)
     old_sr = agent.success_rate
     new_sr = (old_sr * agent.total_runs + feedback_score) / (agent.total_runs + 1)
     agent.success_rate = round(new_sr, 4)
     agent.total_runs += 1
+
+    # Store individual rating + requester weight (cap history at 20)
+    agent.ratings.append(round(feedback_score, 4))
+    agent.rating_weights.append(round(max(0.0, min(1.0, requester_trust)), 4))
+    if len(agent.ratings) > 20:
+        agent.ratings = agent.ratings[-20:]
+        agent.rating_weights = agent.rating_weights[-20:]
+
+    # Update specialization score (SS) from task description
+    if task_description:
+        ss = compute_ss(task_description, agent.skill_md)
+        n = len(agent.ratings)
+        agent.specialization_score = round(
+            (agent.specialization_score * (n - 1) + ss) / n, 4
+        )
+
     return agent.success_rate
 
 
@@ -184,9 +205,23 @@ def submit_feedback(store: AgentStore, provider_id: str, score: float,
                 f"Task '{task_id}' has already been rated."
             )
 
+    # Get requester's trust for WFS weighting (anti-manipulation)
+    requester_trust = 0.5  # neutral default
+    if rated_by:
+        requester_agent = store.get(rated_by)
+        if requester_agent:
+            requester_trust = requester_agent.trust_score
+
+    # Get task description for SS (specialization scoring)
+    task_description = ""
+    if task_id and not task_description:
+        _task = store.get_task(task_id)
+        if _task:
+            task_description = _task.description or ""
+
     # All validation passed — now mutate agent trust
     trust_before = agent.trust_score
-    update_trust(agent, score)
+    update_trust(agent, score, requester_trust, task_description)
     trust_after = agent.trust_score
     store.upsert(agent)
 

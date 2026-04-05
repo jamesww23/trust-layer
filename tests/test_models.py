@@ -10,7 +10,7 @@ class TestAgent:
         assert a.agent_id == "a1"
         assert a.agent_name == "Test Agent"
         assert a.skill_md == "I do things."
-        assert a.success_rate == 0.5
+        assert a.success_rate == 0.2
         assert a.total_runs == 0
 
     def test_to_dict(self):

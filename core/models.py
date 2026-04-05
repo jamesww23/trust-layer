@@ -1,20 +1,22 @@
 """Data models for Agentic Reputation Infrastructure Layer."""
 
 from datetime import datetime, timezone
+from core.scoring import compute_trust_score
 
 
 class Agent:
     """An agent registered in the reputation layer."""
 
-    # Trust system constants
-    PRIOR_TRUST = 0.2       # unproven agent baseline
-    CONFIDENCE_RAMP = 10    # tasks needed for full confidence
+    PRIOR_TRUST = 0.2   # unproven agent baseline (kept for backward compat)
 
     def __init__(self, agent_id: str, agent_name: str, skill_md: str,
-                 success_rate: float = 0.5, total_runs: int = 0,
+                 success_rate: float = 0.2, total_runs: int = 0,
                  flagged: int = 0,
                  tasks_received: int = 0, tasks_completed: int = 0,
                  avg_latency_ms: float = 0.0,
+                 ratings: list = None,
+                 rating_weights: list = None,
+                 specialization_score: float = 0.5,
                  created_at: str = None, updated_at: str = None):
         if not agent_id or not agent_id.strip():
             raise ValueError("agent_id cannot be empty")
@@ -25,20 +27,19 @@ class Agent:
         self.agent_id = agent_id
         self.agent_name = agent_name
         self.skill_md = skill_md
-        self.success_rate = success_rate   # running average of feedback scores
-        self.total_runs = total_runs       # number of ratings received
+        self.success_rate = success_rate   # legacy running average (kept for compat)
+        self.total_runs = total_runs       # total ratings received
         self.flagged = flagged             # times rejected by trust gate
         self.tasks_received = tasks_received
         self.tasks_completed = tasks_completed
-        self.avg_latency_ms = avg_latency_ms  # average task completion time in ms
+        self.avg_latency_ms = avg_latency_ms
+        # 4-signal formula fields (new)
+        self.ratings = list(ratings) if ratings else []              # individual rating history (last 20)
+        self.rating_weights = list(rating_weights) if rating_weights else []  # requester trust per rating
+        self.specialization_score = specialization_score             # SS running average
         now = datetime.now(timezone.utc).isoformat()
         self.created_at = created_at or now
         self.updated_at = updated_at or now
-
-    @property
-    def confidence(self) -> float:
-        """How much we trust the rating average (0-1). Ramps up with experience."""
-        return min(self.total_runs / self.CONFIDENCE_RAMP, 1.0)
 
     @property
     def completion_rate(self) -> float:
@@ -49,53 +50,40 @@ class Agent:
 
     @property
     def latency_score(self) -> float:
-        """Speed factor (0.0-1.0). Lower latency → higher score.
-
-        Maps avg_latency_ms to a 0-1 score using a sigmoid-like curve:
-        - 0ms (or no data) → 1.0 (neutral / no penalty)
-        - 1000ms → ~0.95
-        - 3000ms → ~0.75
-        - 5000ms → ~0.5
-        - 10000ms → ~0.17
-        """
+        """Speed factor (0.0–1.0). Lower latency → higher score."""
         if self.avg_latency_ms <= 0 or self.tasks_completed == 0:
-            return 1.0  # no data yet — neutral
-        # Exponential decay: score = e^(-latency / 7000)
+            return 1.0
         import math
         return round(math.exp(-self.avg_latency_ms / 7000), 4)
 
     @property
     def trust_score(self) -> float:
-        """Composite trust score factoring in rating, experience, completion, and speed.
+        """4-signal composite trust score (see CLAUDE.md and core/scoring.py).
 
-        trust = prior * (1 - confidence) + rating_avg * confidence
-        Then boosted/penalized by completion rate and latency if they have tasks.
+        trust = 0.35×TSR + 0.40×WFS + 0.15×RH + 0.10×SS
 
-        - 0 ratings: trust = 0.2 (unproven)
-        - 5 ratings at 0.8 avg: trust ≈ 0.5
-        - 10+ ratings at 0.8 avg: trust = 0.8
-        - Slow agents get penalized via latency_score
+        TSR  Task Success Rate      — did the agent complete tasks it received?
+        WFS  Weighted Feedback      — ratings weighted by requester's trust score
+        RH   Reliability History    — consistency of last 10 ratings
+        SS   Specialization Score   — task/skill keyword overlap
+
+        Anti-manipulation: capped at 40% until 3 real tasks completed.
         """
-        base = self.PRIOR_TRUST * (1 - self.confidence) + self.success_rate * self.confidence
-
-        # Completion factor: penalize agents who don't deliver
-        if self.tasks_received >= 3:
-            completion_factor = 0.8 + 0.2 * self.completion_rate  # 0.8 to 1.0
-            base *= completion_factor
-
-        # Latency factor: penalize slow agents (only if they have completed tasks)
-        if self.tasks_completed >= 3:
-            latency_factor = 0.85 + 0.15 * self.latency_score  # 0.85 to 1.0
-            base *= latency_factor
-
-        return round(max(0.0, min(1.0, base)), 4)
+        return compute_trust_score(
+            tasks_received=self.tasks_received,
+            tasks_completed=self.tasks_completed,
+            ratings=self.ratings,           # TSR uses ratings to count good completions
+            rating_weights=self.rating_weights,
+            specialization_score=self.specialization_score,
+            fallback_success_rate=self.success_rate,
+        )
 
     def to_dict(self) -> dict:
+        from core.scoring import compute_tsr, compute_wfs, compute_rh
         return {
             "agent_id": self.agent_id,
             "agent_name": self.agent_name,
             "skill_md": self.skill_md,
-            "success_rate": self.success_rate,
             "trust_score": self.trust_score,
             "total_runs": self.total_runs,
             "flagged": self.flagged,
@@ -104,7 +92,14 @@ class Agent:
             "avg_latency_ms": round(self.avg_latency_ms, 0),
             "latency_score": self.latency_score,
             "completion_rate": round(self.completion_rate, 4),
-            "confidence": round(self.confidence, 4),
+            # 4-signal breakdown (for transparency)
+            "tsr": compute_tsr(self.tasks_received, self.ratings),
+            "wfs": compute_wfs(self.ratings, self.rating_weights, self.success_rate),
+            "rh": compute_rh(self.ratings),
+            "ss": round(self.specialization_score, 4),
+            "ratings_count": len(self.ratings),
+            # legacy
+            "success_rate": self.success_rate,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
@@ -121,6 +116,9 @@ class Agent:
             tasks_received=data.get("tasks_received", 0),
             tasks_completed=data.get("tasks_completed", 0),
             avg_latency_ms=data.get("avg_latency_ms", 0.0),
+            ratings=data.get("ratings", []),
+            rating_weights=data.get("rating_weights", []),
+            specialization_score=data.get("specialization_score", 0.5),
             created_at=data.get("created_at"),
             updated_at=data.get("updated_at"),
         )

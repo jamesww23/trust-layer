@@ -120,9 +120,13 @@ class TestDiscoveryRelevanceOrdering:
         """min_trust filter should still work with relevance sorting."""
         store = MemoryStore()
         store.register(Agent("a1", "Low",
-                             "data data data", success_rate=0.2, total_runs=10))
+                             "data data data", success_rate=0.2, total_runs=10,
+                             ratings=[0.2] * 10, rating_weights=[0.5] * 10,
+                             tasks_received=10, tasks_completed=10))
         store.register(Agent("a2", "High",
-                             "data", success_rate=0.8, total_runs=10))
+                             "data", success_rate=0.8, total_runs=10,
+                             ratings=[0.8] * 10, rating_weights=[0.5] * 10,
+                             tasks_received=10, tasks_completed=10))
         results = store.discover("data", min_trust=0.5)
         assert len(results) == 1
         assert results[0].agent_id == "a2"

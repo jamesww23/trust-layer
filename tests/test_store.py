@@ -57,8 +57,14 @@ class TestDiscover:
 
     def test_discover_with_min_trust(self):
         store = MemoryStore()
-        a1 = Agent("a1", "Good", "I do things.", success_rate=0.8, total_runs=10)
-        a2 = Agent("a2", "Bad", "I do things too.", success_rate=0.3, total_runs=10)
+        a1 = Agent("a1", "Good", "I do things.",
+                   success_rate=0.8, total_runs=10,
+                   ratings=[0.8] * 10, rating_weights=[0.5] * 10,
+                   tasks_received=10, tasks_completed=10)
+        a2 = Agent("a2", "Bad", "I do things too.",
+                   success_rate=0.3, total_runs=10,
+                   ratings=[0.3] * 10, rating_weights=[0.5] * 10,
+                   tasks_received=10, tasks_completed=10)
         store.register(a1)
         store.register(a2)
         results = store.discover("things", min_trust=0.5)
