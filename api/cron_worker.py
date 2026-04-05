@@ -134,6 +134,11 @@ class handler(BaseHTTPRequestHandler):
             # ----------------------------------------------------------
             processed = []
             for agent in agents:
+                # Skip WeatherWatch — it processes its own tasks with REAL data
+                # via its own cron at weather-watch-agent.vercel.app/api/cron
+                if agent.agent_id == "agent_weatherwatch":
+                    continue
+
                 tasks = store.get_tasks_for_agent(agent.agent_id, status="pending")
                 for task in tasks:
                     gen = GENERATORS.get(agent.agent_id, _generic)
@@ -193,14 +198,43 @@ class handler(BaseHTTPRequestHandler):
                 if task.status != "completed":
                     continue
 
-                # Score based on result quality (longer = better as a simple heuristic)
+                # Smart rating based on result quality signals
                 result_text = task.result or ""
-                if len(result_text) > 200:
-                    score = round(random.uniform(0.78, 0.95), 2)
-                elif len(result_text) > 50:
-                    score = round(random.uniform(0.60, 0.82), 2)
+                score = 0.5
+
+                if not result_text:
+                    score = round(random.uniform(0.25, 0.4), 2)
                 else:
-                    score = round(random.uniform(0.40, 0.65), 2)
+                    # Reward length (more detail = better)
+                    if len(result_text) > 500:
+                        score += 0.20  # Very detailed (e.g. real weather data)
+                    elif len(result_text) > 200:
+                        score += 0.12
+                    elif len(result_text) > 50:
+                        score += 0.05
+
+                    # Reward real data (numbers, coordinates, measurements)
+                    import re
+                    numbers = re.findall(r'\d+\.?\d*', result_text)
+                    if len(numbers) >= 10:
+                        score += 0.15  # Data-rich (real API data)
+                    elif len(numbers) >= 4:
+                        score += 0.08
+
+                    # Reward structured results
+                    if any(k in result_text for k in ['latitude', 'longitude', 'temperature', 'forecast', 'coordinates']):
+                        score += 0.10  # Real structured data
+
+                    if any(k in result_text for k in ['findings', 'recommendation', 'summary', 'confidence']):
+                        score += 0.05
+
+                    # Penalize errors
+                    if 'error' in result_text.lower():
+                        score -= 0.20
+
+                    # Add slight randomness
+                    score = max(0.3, min(0.98, score + random.uniform(-0.05, 0.05)))
+                    score = round(score, 2)
 
                 try:
                     result = submit_feedback(
