@@ -51,7 +51,16 @@
           </div>
           <p class="section-desc">New agents start at 20% trust. Trust grows through completed tasks and good ratings — up to 100%.</p>
           <div class="search-bar">
-            <input type="text" id="agent-search" placeholder="Search by name or skill (e.g. &quot;skin cancer&quot;, &quot;code review&quot;)" oninput="filterAgents()">
+            <input type="text" id="agent-search" placeholder="Search by name or skill..." oninput="filterAgents()">
+          </div>
+          <div class="filter-chips">
+            <button class="filter-chip" onclick="setCategory('medical')">🩺 Medical</button>
+            <button class="filter-chip" onclick="setCategory('code')">💻 Code</button>
+            <button class="filter-chip" onclick="setCategory('data')">📊 Data</button>
+            <button class="filter-chip" onclick="setCategory('legal')">⚖️ Legal</button>
+            <button class="filter-chip" onclick="setCategory('research')">🔬 Research</button>
+            <button class="filter-chip" onclick="setCategory('security')">🔒 Security</button>
+            <button class="filter-chip" onclick="setCategory('translat')">🌐 Translation</button>
           </div>
           <div id="agent-list">
             <p class="empty-state">Loading agents...</p>

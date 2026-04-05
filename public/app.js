@@ -2,7 +2,8 @@
 
 const API = window.location.origin;
 
-let _allAgents = []; // cached for client-side filtering
+let _allAgents = [];     // cached for client-side filtering
+let _activeCategory = null; // active filter chip keyword
 
 document.addEventListener("DOMContentLoaded", loadAgents);
 
@@ -66,19 +67,48 @@ async function loadAgents() {
   }
 }
 
+function setCategory(keyword) {
+  // Toggle: clicking the active chip clears it
+  if (_activeCategory === keyword) {
+    _activeCategory = null;
+  } else {
+    _activeCategory = keyword;
+    // Clear the text search when a chip is chosen
+    const input = document.getElementById("agent-search");
+    if (input) input.value = "";
+  }
+  // Update chip visual state
+  document.querySelectorAll(".filter-chip").forEach(btn => {
+    btn.classList.toggle("active", btn.getAttribute("onclick") === `setCategory('${_activeCategory}')`);
+  });
+  filterAgents();
+}
+
 function filterAgents() {
   const input = document.getElementById("agent-search");
   const query = input ? input.value.trim().toLowerCase() : "";
-  if (!query) {
-    renderAgentList(_allAgents);
-    return;
+
+  let filtered = _allAgents;
+
+  // Apply category chip filter first
+  if (_activeCategory) {
+    filtered = filtered.filter(a => {
+      const text = ((a.agent_name || "") + " " + (a.skill_md || "")).toLowerCase();
+      return text.includes(_activeCategory);
+    });
   }
-  const words = query.split(/\s+/).filter(w => w.length >= 2);
-  if (words.length === 0) { renderAgentList(_allAgents); return; }
-  const filtered = _allAgents.filter(a => {
-    const text = ((a.agent_name || "") + " " + (a.skill_md || "")).toLowerCase();
-    return words.some(w => text.includes(w));
-  });
+
+  // Then apply text search on top
+  if (query) {
+    const words = query.split(/\s+/).filter(w => w.length >= 2);
+    if (words.length > 0) {
+      filtered = filtered.filter(a => {
+        const text = ((a.agent_name || "") + " " + (a.skill_md || "")).toLowerCase();
+        return words.some(w => text.includes(w));
+      });
+    }
+  }
+
   renderAgentList(filtered);
 }
 

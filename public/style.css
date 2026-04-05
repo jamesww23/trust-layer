@@ -140,6 +140,32 @@ h1 {
 .search-bar input:focus { border-color: var(--green-mid); outline: none; box-shadow: 0 0 0 3px #bbf7d0; }
 .search-bar input::placeholder { color: var(--text-muted); }
 
+/* === Category filter chips === */
+.filter-chips {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 16px;
+}
+.filter-chip {
+  background: var(--white);
+  border: 1px solid var(--border-dark);
+  color: var(--text-secondary);
+  border-radius: 99px;
+  padding: 5px 14px;
+  font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s;
+  outline: none;
+}
+.filter-chip:hover {
+  border-color: var(--green-mid);
+  color: var(--green-dark);
+  background: var(--green-light);
+}
+.filter-chip.active {
+  background: var(--green-dark);
+  border-color: var(--green-dark);
+  color: #fff;
+}
+
 /* === Agent Cards === */
 .agent-card {
   background: var(--bg-card);
