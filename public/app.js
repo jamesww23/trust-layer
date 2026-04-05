@@ -89,9 +89,21 @@ function renderAgentList(agents) {
     return;
   }
   el.innerHTML = agents.map(a => {
+    const trustScore = a.trust_score != null ? a.trust_score : a.success_rate;
+    const trustPct = scoreNum(trustScore);
+    const tasksCompleted = a.tasks_completed || 0;
     const skillHtml = renderSkillMd(a.skill_md);
     const flaggedHtml = a.flagged > 0
-      ? `<span class="stat flagged-stat">Blocked: <strong>${a.flagged} times</strong></span>`
+      ? `<span class="stat flagged-stat">Blocked: <strong>${a.flagged}×</strong></span>`
+      : '';
+    // Trust bar fill width
+    const barPct = Math.round(trustScore * 100);
+    // 4-signal breakdown (if available)
+    const breakdown = (a.tsr != null)
+      ? `<span class="stat" title="Task Success Rate">TSR: <strong>${Math.round(a.tsr * 100)}%</strong></span>` +
+        `<span class="stat" title="Weighted Feedback Score">WFS: <strong>${Math.round(a.wfs * 100)}%</strong></span>` +
+        `<span class="stat" title="Reliability History">RH: <strong>${Math.round(a.rh * 100)}%</strong></span>` +
+        `<span class="stat" title="Specialization Score">SS: <strong>${Math.round(a.ss * 100)}%</strong></span>`
       : '';
     return `
       <div class="agent-card">
@@ -100,19 +112,27 @@ function renderAgentList(agents) {
             <span class="agent-name">${esc(a.agent_name)}</span>
             <span class="agent-id">${esc(a.agent_id)}</span>
           </div>
-          <div class="agent-trust-badge">
-            <span class="trust-stars">${toScoreBar(a.trust_score != null ? a.trust_score : a.success_rate)}</span>
-            <span class="trust-value">${scoreNum(a.trust_score != null ? a.trust_score : a.success_rate)}%</span>
+          <div class="agent-scores">
+            <div class="score-badge score-badge-trust">
+              <span class="score-badge-label">Trust</span>
+              <span class="score-badge-value">${trustPct}%</span>
+            </div>
+            <div class="score-badge score-badge-usage">
+              <span class="score-badge-label">Uses</span>
+              <span class="score-badge-value">${tasksCompleted}</span>
+            </div>
+          </div>
+        </div>
+        <div class="trust-bar-row">
+          <div class="trust-bar-track">
+            <div class="trust-bar-fill" style="width:${barPct}%"></div>
           </div>
         </div>
         <div class="agent-skill-md">${skillHtml}</div>
         <div class="agent-stats">
-          <span class="stat">Rating avg: <strong>${a.total_runs > 0 ? (a.success_rate * 100).toFixed(0) + '%' : '—'}</strong></span>
-          <span class="stat">Ratings: <strong>${a.total_runs}</strong></span>
-          <span class="stat">Tasks: <strong>${a.tasks_completed || 0}/${a.tasks_received || 0}</strong></span>
-          <span class="stat">Completion: <strong>${a.tasks_received > 0 ? ((a.completion_rate || 0) * 100).toFixed(0) + '%' : '—'}</strong></span>
-          <span class="stat">Avg speed: <strong>${a.tasks_completed > 0 && a.avg_latency_ms > 0 ? formatLatency(a.avg_latency_ms) : '—'}</strong></span>
-          <span class="stat">Confidence: <strong>${((a.confidence || 0) * 100).toFixed(0)}%</strong></span>
+          ${breakdown}
+          <span class="stat">Tasks: <strong>${tasksCompleted}/${a.tasks_received || 0}</strong></span>
+          <span class="stat">Avg speed: <strong>${tasksCompleted > 0 && a.avg_latency_ms > 0 ? formatLatency(a.avg_latency_ms) : '—'}</strong></span>
           ${flaggedHtml}
         </div>
       </div>
