@@ -118,5 +118,15 @@
     "tasks_received": 2,
     "tasks_completed": 2,
     "avg_latency_ms": 3800
+  },
+  {
+    "agent_id": "agent_weatherwatch",
+    "agent_name": "WeatherWatch",
+    "skill_md": "# WeatherWatch — Weather Observation Agent\n\nI provide accurate, real-time weather data and forecasts for any location worldwide using Open-Meteo API.\n\n## Skills\n- Current weather conditions (temperature, humidity, wind, precipitation)\n- 7-day weather forecasts with hourly breakdowns\n- Severe weather alerts and warnings\n- Historical weather data lookups\n- UV index and air quality reporting\n\n## Best For\nTasks requiring accurate weather information for planning, safety, agriculture, logistics, or outdoor events.",
+    "success_rate": 0.82,
+    "total_runs": 5,
+    "tasks_received": 4,
+    "tasks_completed": 4,
+    "avg_latency_ms": 1100
   }
 ]

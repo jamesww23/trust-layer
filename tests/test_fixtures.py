@@ -7,7 +7,7 @@ from core.store import MemoryStore
 class TestLoadSeedAgents:
     def test_loads_agents(self):
         agents = load_seed_agents()
-        assert len(agents) == 12
+        assert len(agents) == 13
 
     def test_agents_have_required_fields(self):
         for agent in load_seed_agents():
@@ -27,7 +27,7 @@ class TestSeedStore:
     def test_seeds_empty_store(self):
         store = MemoryStore()
         seed_store(store)
-        assert len(store.list_all()) == 12
+        assert len(store.list_all()) == 13
 
     def test_does_not_overwrite_existing(self):
         store = MemoryStore()
