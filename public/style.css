@@ -76,8 +76,10 @@ h1 {
   padding: 14px 20px; cursor: pointer;
   transition: all 0.15s;
   margin-bottom: -2px;
+  outline: none;
 }
 .tab-btn:hover { color: var(--green-dark); }
+.tab-btn:focus-visible { outline: 2px solid var(--green-mid); outline-offset: -2px; }
 .tab-btn.active {
   color: var(--green-dark);
   border-bottom-color: var(--green-dark);
@@ -424,6 +426,26 @@ input:focus, textarea:focus { border-color: var(--green-mid); outline: none; box
   border-radius: 4px; cursor: pointer; transition: all 0.15s;
 }
 .btn-copy:hover { background: var(--green-light); color: var(--green-dark); border-color: var(--green-border); }
+/* === Register collapsible (details/summary) === */
+.register-details {
+  border: 1px dashed var(--border-dark);
+  border-radius: 10px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+.register-summary {
+  padding: 12px 16px;
+  font-size: 13px; font-weight: 600;
+  color: var(--green-dark);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.register-summary::-webkit-details-marker { display: none; }
+.register-summary:hover { background: var(--green-light); }
+.register-details[open] .register-summary { border-bottom: 1px solid var(--border); }
+.register-details-body { padding: 20px 16px; }
+
 .register-form textarea {
   background: var(--bg-input); color: var(--text-primary);
   border: 1px solid var(--border-dark); border-radius: 8px;

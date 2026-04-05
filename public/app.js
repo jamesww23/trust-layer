@@ -21,7 +21,7 @@ function switchTab(tabId) {
   // Activate matching button by data attribute
   document.querySelector('.tab-btn[data-tab="' + tabId + '"]').classList.add("active");
 
-  // Auto-load activity feed when switching to Activity tab
+  // Auto-load data when switching tabs
   if (tabId === "activity") {
     loadActivity();
   }
