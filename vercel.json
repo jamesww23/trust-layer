@@ -1,5 +1,10 @@
 {
   "version": 2,
+  "functions": {
+    "api/experiment2.py": {
+      "maxDuration": 60
+    }
+  },
   "crons": [
     {
       "path": "/api/cron-worker",
@@ -29,6 +34,7 @@
     { "src": "/api/reset", "dest": "/api/reset.py" },
     { "src": "/api/cron-worker", "dest": "/api/cron_worker.py" },
     { "src": "/api/vouch", "dest": "/api/vouch.py" },
+    { "src": "/api/experiment2", "dest": "/api/experiment2.py" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]
 }
