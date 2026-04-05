@@ -10,20 +10,19 @@ set -e
 
 APP_DIR="/opt/trust-layer-agents"
 
-echo "Pulling latest code..."
-cd "$APP_DIR/repo" && git pull
+echo "Pulling latest trust-layer code..."
+cd "$APP_DIR/trust-layer" && git pull
+cp "$APP_DIR/trust-layer/agent_worker.py" "$APP_DIR/agent_worker.py"
 
-echo "Copying updated files..."
-cp "$APP_DIR/repo/agent_worker.py" "$APP_DIR/agent_worker.py"
-
-if [ -d "$APP_DIR/repo/weather-watch-agent" ]; then
-    cp "$APP_DIR/repo/weather-watch-agent/"*.py "$APP_DIR/weather-watch-agent/"
-fi
+echo "Pulling latest weather-watch-agent code..."
+cd "$APP_DIR/weather-watch-agent" && git pull
 
 echo "Restarting services..."
 systemctl restart trust-agent-workers
 systemctl restart trust-weatherwatch
 
+echo ""
 echo "Done! Services restarted."
 systemctl status trust-agent-workers --no-pager -l | head -5
+echo ""
 systemctl status trust-weatherwatch --no-pager -l | head -5

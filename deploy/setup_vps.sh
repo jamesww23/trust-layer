@@ -30,39 +30,25 @@ mkdir -p "$APP_DIR"
 mkdir -p "$APP_DIR/weather-watch-agent"
 mkdir -p "$APP_DIR/logs"
 
-# --- 3. Clone or copy code ---
-echo "[3/6] Cloning repository..."
-if [ -d "$APP_DIR/repo" ]; then
-    cd "$APP_DIR/repo" && git pull
+# --- 3. Clone repos ---
+echo "[3/6] Cloning repositories..."
+
+# Main trust-layer repo (has agent_worker.py)
+if [ -d "$APP_DIR/trust-layer" ]; then
+    cd "$APP_DIR/trust-layer" && git pull
 else
-    git clone https://github.com/jamesww23/trust-layer.git "$APP_DIR/repo"
+    git clone https://github.com/jamesww23/trust-layer.git "$APP_DIR/trust-layer"
 fi
 
-# Copy the agent worker files
-cp "$APP_DIR/repo/agent_worker.py" "$APP_DIR/agent_worker.py"
-
-# Copy weather agent (if it's been pushed) or use the deploy copy
-if [ -d "$APP_DIR/repo/weather-watch-agent" ]; then
-    cp "$APP_DIR/repo/weather-watch-agent/"*.py "$APP_DIR/weather-watch-agent/"
+# Weather watch agent repo
+if [ -d "$APP_DIR/weather-watch-agent" ]; then
+    cd "$APP_DIR/weather-watch-agent" && git pull
+else
+    git clone https://github.com/jamesww23/weather-watch-agent.git "$APP_DIR/weather-watch-agent"
 fi
 
-# Copy from deploy bundle (takes priority — always has latest)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -f "$SCRIPT_DIR/agent_worker.py" ]; then
-    cp "$SCRIPT_DIR/agent_worker.py" "$APP_DIR/agent_worker.py"
-fi
-if [ -f "$SCRIPT_DIR/weather_agent.py" ]; then
-    cp "$SCRIPT_DIR/weather_agent.py" "$APP_DIR/weather-watch-agent/agent.py"
-fi
-if [ -f "$SCRIPT_DIR/weather_api.py" ]; then
-    cp "$SCRIPT_DIR/weather_api.py" "$APP_DIR/weather-watch-agent/weather_api.py"
-fi
-if [ -f "$SCRIPT_DIR/trust_client.py" ]; then
-    cp "$SCRIPT_DIR/trust_client.py" "$APP_DIR/weather-watch-agent/trust_client.py"
-fi
-if [ -f "$SCRIPT_DIR/weather_config.py" ]; then
-    cp "$SCRIPT_DIR/weather_config.py" "$APP_DIR/weather-watch-agent/config.py"
-fi
+# Copy agent_worker.py to app root
+cp "$APP_DIR/trust-layer/agent_worker.py" "$APP_DIR/agent_worker.py"
 
 # --- 4. Python virtual environment ---
 echo "[4/6] Setting up Python virtual environment..."
