@@ -1,5 +1,11 @@
 {
   "version": 2,
+  "crons": [
+    {
+      "path": "/api/cron-worker",
+      "schedule": "* * * * *"
+    }
+  ],
   "builds": [
     {
       "src": "api/**/*.py",
@@ -21,6 +27,7 @@
     { "src": "/api/submit-result", "dest": "/api/submit_result.py" },
     { "src": "/api/activity", "dest": "/api/activity.py" },
     { "src": "/api/reset", "dest": "/api/reset.py" },
+    { "src": "/api/cron-worker", "dest": "/api/cron_worker.py" },
     { "src": "/api/vouch", "dest": "/api/vouch.py" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]
