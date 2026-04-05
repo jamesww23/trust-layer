@@ -84,6 +84,20 @@ h1 {
   color: var(--green-dark);
   border-bottom-color: var(--green-dark);
 }
+.tab-btn-register {
+  margin-left: auto;
+  align-self: center;
+  background: var(--green-dark);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: background 0.15s;
+  outline: none;
+  white-space: nowrap;
+}
+.tab-btn-register:hover { background: #14532d; }
 
 /* === Tab Panels === */
 .tab-panel { display: none; }
@@ -389,9 +403,15 @@ input:focus, textarea:focus { border-color: var(--green-mid); outline: none; box
 /* === Architecture Flow === */
 .arch-flow { display: flex; align-items: center; gap: 6px; margin-top: 16px; flex-wrap: wrap; }
 .arch-step {
-  background: var(--green-muted); border: 1px solid var(--green-border); border-radius: 6px;
-  padding: 4px 10px; font-size: 12px; font-weight: 600; color: var(--green-dark);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: 12px; font-weight: 600; color: #fff;
+  white-space: nowrap;
 }
+.arch-icon { font-size: 18px; }
 .arch-arrow { color: var(--text-muted); font-size: 14px; }
 
 /* === Trust Gate & Feedback Badges === */
@@ -569,6 +589,86 @@ input:focus, textarea:focus { border-color: var(--green-mid); outline: none; box
 
 /* === Vouch Section === */
 .vouch-form { max-width: 500px; }
+
+/* === Home activity cards === */
+.home-activity-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  transition: border-color 0.15s;
+}
+.home-activity-card:hover { border-color: var(--green-border); }
+.hac-agents {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 4px;
+}
+.hac-name { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.hac-arrow { color: var(--text-muted); font-size: 12px; }
+.hac-task { font-size: 12px; color: var(--text-secondary); }
+.hac-meta { margin-bottom: 6px; }
+.hac-footer {
+  display: flex; align-items: center; gap: 10px;
+}
+.hac-rating {
+  background: var(--green-dark); color: #fff;
+  font-size: 11px; font-weight: 700;
+  border-radius: 99px; padding: 2px 8px;
+}
+.hac-time { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+
+.activity-live-dot {
+  width: 8px; height: 8px;
+  background: var(--green-mid);
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* === How-to steps (Connect tab) === */
+.how-step {
+  display: flex; gap: 20px; align-items: flex-start;
+  margin-bottom: 32px;
+}
+.how-step-num {
+  flex-shrink: 0;
+  width: 36px; height: 36px;
+  background: var(--green-dark); color: #fff;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 800;
+  margin-top: 2px;
+}
+.how-step-body { flex: 1; min-width: 0; }
+.how-step-body h3 {
+  font-size: 15px; font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.how-step-body p {
+  font-size: 13px; color: var(--text-secondary);
+  margin-bottom: 10px; line-height: 1.6;
+}
+.code-block {
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 12px; line-height: 1.7;
+  color: var(--text-primary);
+  white-space: pre-wrap; overflow-x: auto;
+}
+.how-step-body code {
+  background: var(--bg-code);
+  border-radius: 4px; padding: 1px 5px;
+  font-size: 12px; font-family: monospace;
+}
 
 /* === Footer === */
 footer {

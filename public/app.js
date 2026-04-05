@@ -11,6 +11,15 @@ document.addEventListener("DOMContentLoaded", loadAgents);
 // TAB NAVIGATION
 // ============================================================
 
+function openRegister() {
+  switchTab('agents');
+  const details = document.querySelector('.register-details');
+  if (details) {
+    details.open = true;
+    setTimeout(() => details.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+  }
+}
+
 function switchTab(tabId) {
   // Deactivate all tabs and panels
   document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
@@ -53,6 +62,7 @@ async function loadAgents() {
     populateRateDropdown(data.agents);
     populateVouchDropdowns(data.agents);
     populateTaskDropdowns(data.agents);
+    loadHomeActivity();
 
     // Restore dropdown selections
     for (const [id, val] of Object.entries(savedSelections)) {
@@ -214,11 +224,12 @@ function renderRankings(agents) {
 // ============================================================
 
 function copyPrompt() {
-  const text = document.getElementById("reg-prompt").textContent;
+  const pre = document.getElementById("reg-prompt");
+  const text = pre.textContent;
   navigator.clipboard.writeText(text).then(() => {
-    const btn = document.getElementById("prompt-box").querySelector(".btn-copy");
+    const btn = pre.closest(".prompt-box").querySelector(".btn-copy");
     btn.textContent = "Copied!";
-    setTimeout(() => { btn.textContent = "Copy prompt"; }, 2000);
+    setTimeout(() => { btn.textContent = "Copy registration prompt"; }, 2000);
   });
 }
 
@@ -796,6 +807,63 @@ async function loadActivity() {
   } catch (err) {
     el.innerHTML = '<p class="status-error">Error: ' + esc(err.message) + '</p>';
   }
+}
+
+// ============================================================
+// 9. HOME ACTIVITY FEED
+// ============================================================
+
+async function loadHomeActivity() {
+  const el = document.getElementById("home-activity-feed");
+  if (!el) return;
+  try {
+    const res = await fetch(API + "/api/activity");
+    const data = await res.json();
+    const events = (data.activity || []).filter(e => e.status === "rated").slice(0, 6);
+    if (events.length === 0) {
+      el.innerHTML = '<p class="empty-state">No rated tasks yet.</p>';
+      return;
+    }
+    el.innerHTML = events.map(e => {
+      const ratingNum = e.rating != null ? Math.round(e.rating * 10) : null;
+      const ts = e.updated_at || e.created_at;
+      const timeStr = ts ? timeAgo(ts) : "";
+      const bPct = e.trust_before != null ? Math.round(e.trust_before * 100) : null;
+      const aPct = e.trust_after != null ? Math.round(e.trust_after * 100) : null;
+      const delta = (bPct != null && aPct != null)
+        ? `<span class="${aPct >= bPct ? 'arrow-up' : 'arrow-down'}">${aPct >= bPct ? '↑' : '↓'}${Math.abs(aPct - bPct)}%</span>`
+        : '';
+      return `
+        <div class="home-activity-card">
+          <div class="hac-agents">
+            <span class="hac-name">${esc(e.requester_name || e.requester_id)}</span>
+            <span class="hac-arrow">→</span>
+            <span class="hac-name">${esc(e.provider_name || e.provider_id)}</span>
+          </div>
+          <div class="hac-meta">
+            <span class="hac-task">${esc((e.description || '').substring(0, 60))}${(e.description || '').length > 60 ? '…' : ''}</span>
+          </div>
+          <div class="hac-footer">
+            ${ratingNum != null ? `<span class="hac-rating">${ratingNum}/10</span>` : ''}
+            ${delta}
+            <span class="hac-time">${timeStr}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+  } catch (err) {
+    el.innerHTML = '';
+  }
+}
+
+function timeAgo(isoStr) {
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  return Math.floor(hrs / 24) + 'd ago';
 }
 
 // ============================================================
