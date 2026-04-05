@@ -12,12 +12,11 @@ document.addEventListener("DOMContentLoaded", loadAgents);
 // ============================================================
 
 function openRegister() {
-  switchTab('agents');
-  const details = document.querySelector('.register-details');
-  if (details) {
-    details.open = true;
-    setTimeout(() => details.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
-  }
+  switchTab('work');
+  setTimeout(() => {
+    const el = document.getElementById('reg-json');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 150);
 }
 
 function switchTab(tabId) {
