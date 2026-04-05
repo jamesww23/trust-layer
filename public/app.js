@@ -98,13 +98,6 @@ function renderAgentList(agents) {
       : '';
     // Trust bar fill width
     const barPct = Math.round(trustScore * 100);
-    // 4-signal breakdown (if available)
-    const breakdown = (a.tsr != null)
-      ? `<span class="stat" title="Task Success Rate">TSR: <strong>${Math.round(a.tsr * 100)}%</strong></span>` +
-        `<span class="stat" title="Weighted Feedback Score">WFS: <strong>${Math.round(a.wfs * 100)}%</strong></span>` +
-        `<span class="stat" title="Reliability History">RH: <strong>${Math.round(a.rh * 100)}%</strong></span>` +
-        `<span class="stat" title="Specialization Score">SS: <strong>${Math.round(a.ss * 100)}%</strong></span>`
-      : '';
     return `
       <div class="agent-card">
         <div class="agent-card-header">
@@ -129,12 +122,11 @@ function renderAgentList(agents) {
           </div>
         </div>
         <div class="agent-skill-md">${skillHtml}</div>
+        ${(tasksCompleted > 0 || a.flagged > 0) ? `
         <div class="agent-stats">
-          ${breakdown}
-          <span class="stat">Tasks: <strong>${tasksCompleted}/${a.tasks_received || 0}</strong></span>
-          <span class="stat">Avg speed: <strong>${tasksCompleted > 0 && a.avg_latency_ms > 0 ? formatLatency(a.avg_latency_ms) : '—'}</strong></span>
+          ${tasksCompleted > 0 ? `<span class="stat">Avg speed: <strong>${a.avg_latency_ms > 0 ? formatLatency(a.avg_latency_ms) : '—'}</strong></span>` : ''}
           ${flaggedHtml}
-        </div>
+        </div>` : ''}
       </div>
     `;
   }).join("");
