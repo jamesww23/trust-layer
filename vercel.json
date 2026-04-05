@@ -1,10 +1,5 @@
 {
   "version": 2,
-  "functions": {
-    "api/experiment2.py": {
-      "maxDuration": 60
-    }
-  },
   "crons": [
     {
       "path": "/api/cron-worker",
