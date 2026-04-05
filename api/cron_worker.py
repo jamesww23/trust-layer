@@ -231,10 +231,21 @@ class handler(BaseHTTPRequestHandler):
 
             # ----------------------------------------------------------
             # STEP 3: Auto-delegate new tasks (create organic activity)
+            # Only delegate if there aren't too many pending tasks already
             # ----------------------------------------------------------
             delegated = []
-            # Pick 2-4 random delegations
-            num_delegations = random.randint(2, 4)
+
+            # Count existing pending tasks — don't flood
+            pending_count = 0
+            for agent in agents:
+                pending_count += len(store.get_tasks_for_agent(agent.agent_id, status="pending"))
+
+            # Only delegate if fewer than 5 pending tasks system-wide
+            # and 30% chance per run to keep it organic
+            num_delegations = 0
+            if pending_count < 5 and random.random() < 0.30:
+                num_delegations = random.randint(1, 3)
+
             templates = random.sample(DELEGATION_TEMPLATES, min(num_delegations, len(DELEGATION_TEMPLATES)))
 
             for tmpl in templates:
