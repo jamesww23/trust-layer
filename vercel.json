@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/cron-worker",
-      "schedule": "* * * * *"
+      "schedule": "*/10 * * * *"
     }
   ],
   "builds": [
