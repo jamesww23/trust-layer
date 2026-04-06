@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Experiment 3: Failure Recovery | Trust Layer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+        .container { max-width: 1060px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; padding: 30px 20px 10px; }
+        .header h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #f59e0b, #ef4444, #22c55e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        .header p { color: #94a3b8; font-size: 0.95rem; }
+        .header .badge {
+            display: inline-block; background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            padding: 4px 12px; border-radius: 20px;
+            font-size: 0.8rem; color: #f59e0b; margin-top: 10px;
+        }
+        .card {
+            background: rgba(30, 41, 59, 0.8); border: 1px solid #334155;
+            border-radius: 14px; padding: 24px; margin: 16px 0;
+        }
+        .card h2 { font-size: 1.15rem; color: #f59e0b; margin-bottom: 12px; }
+        .run-section { text-align: center; margin: 24px 0; }
+        .run-btn {
+            background: linear-gradient(135deg, #f59e0b, #ef4444);
+            border: none; color: white; padding: 14px 40px;
+            font-size: 1.1rem; font-weight: 600; border-radius: 12px;
+            cursor: pointer; transition: all 0.3s;
+        }
+        .run-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(245,158,11,0.3); }
+        .run-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .rounds-select {
+            background: #1e293b; border: 1px solid #475569; color: #e2e8f0;
+            padding: 10px 16px; border-radius: 8px; font-size: 1rem; margin-right: 12px;
+        }
+        .progress-bar { display: none; margin: 16px 0; }
+        .progress-bar .track { height: 6px; background: #1e293b; border-radius: 3px; overflow: hidden; }
+        .progress-bar .fill {
+            height: 100%; background: linear-gradient(90deg, #22c55e, #ef4444, #22c55e);
+            border-radius: 3px; width: 0%; transition: width 0.5s;
+        }
+        .progress-text { text-align: center; font-size: 0.9rem; color: #94a3b8; margin-top: 8px; }
+
+        /* Phase indicators */
+        .phases-bar { display: flex; gap: 4px; margin: 16px 0; border-radius: 8px; overflow: hidden; }
+        .phase-segment { flex: 1; padding: 10px; text-align: center; font-size: 0.8rem; font-weight: 600; }
+        .phase-reliable { background: rgba(34, 197, 94, 0.2); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+        .phase-degraded { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+        .phase-recovery { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3); }
+
+        /* Agent comparison */
+        .agent-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+        @media (max-width: 700px) { .agent-compare { grid-template-columns: 1fr; } }
+        .agent-box {
+            background: rgba(15, 23, 42, 0.6); border: 2px solid #334155;
+            border-radius: 12px; padding: 20px; text-align: center;
+        }
+        .agent-box .name { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+        .agent-box .role { font-size: 0.78rem; color: #94a3b8; margin-bottom: 14px; }
+        .agent-box .metric { margin: 10px 0; }
+        .agent-box .metric .value { font-size: 1.8rem; font-weight: 800; }
+        .agent-box .metric .label {
+            font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .trust-high { color: #22c55e; }
+        .trust-mid { color: #eab308; }
+        .trust-low { color: #ef4444; }
+
+        /* Chart */
+        .chart-area { position: relative; height: 220px; margin: 16px 0; }
+        .chart-svg { width: 100%; height: 200px; }
+        .chart-legend { display: flex; gap: 20px; justify-content: center; margin-top: 8px; font-size: 0.8rem; }
+        .chart-legend span::before {
+            content: ''; display: inline-block; width: 12px; height: 3px;
+            margin-right: 6px; vertical-align: middle; border-radius: 1px;
+        }
+        .legend-test::before { background: #f59e0b; }
+        .legend-control::before { background: #38bdf8; }
+
+        /* Analysis */
+        .analysis-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        @media (max-width: 600px) { .analysis-grid { grid-template-columns: 1fr; } }
+        .analysis-item {
+            background: rgba(15, 23, 42, 0.5); border-radius: 8px; padding: 14px; text-align: center;
+        }
+        .analysis-item .val { font-size: 1.4rem; font-weight: 700; }
+        .analysis-item .lbl { font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; margin-top: 4px; }
+
+        .conclusion { text-align: center; padding: 20px; font-size: 1.05rem; line-height: 1.6; }
+        .conclusion .verdict { font-size: 1.3rem; font-weight: 800; margin-bottom: 8px; }
+        .conclusion.success .verdict { color: #22c55e; }
+        .conclusion.partial .verdict { color: #eab308; }
+
+        .rounds-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .rounds-table th {
+            background: rgba(15, 23, 42, 0.6); padding: 8px 6px; text-align: left;
+            color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 0.7rem;
+        }
+        .rounds-table td { padding: 8px 6px; border-top: 1px solid #1e293b; }
+        .rounds-table tr:hover { background: rgba(245, 158, 11, 0.05); }
+        .phase-tag {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.68rem; font-weight: 600;
+        }
+        .tag-reliable { background: rgba(34,197,94,0.2); color: #22c55e; }
+        .tag-degraded { background: rgba(239,68,68,0.2); color: #ef4444; }
+        .tag-recovery { background: rgba(56,189,248,0.2); color: #38bdf8; }
+
+        a { color: #f59e0b; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .back-link { display: inline-block; margin-bottom: 16px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="/" class="back-link">&larr; Back to Trust Layer Dashboard</a>
+
+    <div class="header">
+        <h1>Experiment 3: Failure Recovery</h1>
+        <p>Does the Trust Layer detect failure and reward recovery?</p>
+        <div class="badge">MIT MAS.664 &middot; Assignment 7 &middot; Team 8</div>
+    </div>
+
+    <div class="card">
+        <h2>Hypothesis</h2>
+        <p>When an agent's performance <strong>degrades</strong>, its trust score should <strong>drop</strong>.
+        When performance <strong>recovers</strong>, trust should <strong>rise again</strong> — proving the
+        trust formula is responsive to real-time quality changes, not just historical averages.</p>
+        <div class="phases-bar" style="margin-top:16px;">
+            <div class="phase-segment phase-reliable">Phase 1: Reliable</div>
+            <div class="phase-segment phase-degraded">Phase 2: Degraded</div>
+            <div class="phase-segment phase-recovery">Phase 3: Recovery</div>
+        </div>
+        <p style="color:#94a3b8; font-size:0.85rem; margin-top:10px;">
+            <strong>UnstableWeatherBot</strong> performs well, then fails, then recovers.
+            <strong>SteadyWeatherBot</strong> (control) performs consistently throughout.
+            Both are evaluated against Open-Meteo ground truth by a <em>RecoveryJudge</em>.
+        </p>
+    </div>
+
+    <div class="run-section">
+        <select class="rounds-select" id="roundsSelect">
+            <option value="3">3 per phase (9 total)</option>
+            <option value="4" selected>4 per phase (12 total)</option>
+            <option value="5">5 per phase (15 total)</option>
+            <option value="6">6 per phase (18 total)</option>
+        </select>
+        <button class="run-btn" id="runBtn" onclick="runExperiment()">Run Experiment</button>
+    </div>
+
+    <div class="progress-bar" id="progressBar">
+        <div class="track"><div class="fill" id="progressFill"></div></div>
+        <div class="progress-text" id="progressText">Initializing...</div>
+    </div>
+
+    <div id="resultsSection" style="display:none;">
+        <div class="card">
+            <h2>Trust Score Trajectory</h2>
+            <div class="chart-area" id="chartArea"></div>
+        </div>
+
+        <div class="card">
+            <h2>Agent Comparison</h2>
+            <div class="agent-compare" id="agentCompare"></div>
+        </div>
+
+        <div class="card">
+            <h2>Phase Analysis</h2>
+            <div class="analysis-grid" id="analysisGrid"></div>
+        </div>
+
+        <div class="card" id="conclusionCard">
+            <h2>Conclusion</h2>
+            <div class="conclusion" id="conclusionText"></div>
+        </div>
+
+        <div class="card">
+            <h2>Round-by-Round Details</h2>
+            <div style="overflow-x:auto;">
+                <table class="rounds-table">
+                    <thead>
+                        <tr>
+                            <th>Round</th>
+                            <th>Phase</th>
+                            <th>City</th>
+                            <th>Ground Truth</th>
+                            <th>UnstableBot (test)</th>
+                            <th>SteadyBot (control)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="roundsBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card" id="metaCard" style="font-size:0.85rem; color:#94a3b8;"></div>
+    </div>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+
+function tColor(s) { return s >= 0.5 ? 'trust-high' : s >= 0.3 ? 'trust-mid' : 'trust-low'; }
+function accClr(s) { return s >= 0.7 ? '#22c55e' : s >= 0.4 ? '#eab308' : '#ef4444'; }
+
+async function runExperiment() {
+    const btn = document.getElementById('runBtn');
+    const bar = document.getElementById('progressBar');
+    const fill = document.getElementById('progressFill');
+    const pText = document.getElementById('progressText');
+    const rpp = document.getElementById('roundsSelect').value;
+    const total = rpp * 3;
+
+    btn.disabled = true; btn.textContent = 'Running...';
+    bar.style.display = 'block'; fill.style.width = '10%';
+    document.getElementById('resultsSection').style.display = 'none';
+
+    const phases = ['Reliable', 'Degraded', 'Recovery'];
+    let progress = 10;
+    const iv = setInterval(() => {
+        progress = Math.min(progress + Math.random() * 6, 90);
+        fill.style.width = progress + '%';
+        const r = Math.floor(progress / (80/total)) + 1;
+        const p = r <= rpp ? 0 : r <= rpp*2 ? 1 : 2;
+        pText.textContent = `Round ${Math.min(r, total)}/${total} — Phase: ${phases[p]}`;
+    }, 1200);
+
+    try {
+        const resp = await fetch(`${API_BASE}/api/experiment3?rounds_per_phase=${rpp}`);
+        const data = await resp.json();
+        clearInterval(iv); fill.style.width = '100%';
+        pText.textContent = 'Experiment complete!';
+
+        if (data.error) { pText.textContent = `Error: ${data.error}`; btn.disabled = false; btn.textContent = 'Retry'; return; }
+
+        renderResults(data);
+        document.getElementById('resultsSection').style.display = 'block';
+        setTimeout(() => bar.style.display = 'none', 2000);
+    } catch (err) {
+        clearInterval(iv); pText.textContent = `Error: ${err.message}`;
+    }
+    btn.disabled = false; btn.textContent = 'Run Again';
+}
+
+function renderResults(data) {
+    renderChart(data);
+    renderComparison(data);
+    renderAnalysis(data);
+    renderConclusion(data);
+    renderRounds(data);
+    renderMeta(data);
+}
+
+function renderChart(data) {
+    const container = document.getElementById('chartArea');
+    const testT = data.trust_trajectory.test;
+    const ctrlT = data.trust_trajectory.control;
+    const n = testT.length;
+    const rpp = data.rounds_per_phase;
+
+    const allVals = [...testT, ...ctrlT];
+    const maxV = Math.max(...allVals, 0.5);
+    const minV = Math.min(...allVals, 0.1);
+    const range = maxV - minV || 0.1;
+
+    const W = 800, H = 180, pad = 40;
+    const plotW = W - pad * 2, plotH = H - 20;
+
+    function x(i) { return pad + (i / (n - 1)) * plotW; }
+    function y(v) { return H - 10 - ((v - minV) / range) * plotH; }
+
+    // Phase background rects
+    let svg = `<svg viewBox="0 0 ${W} ${H}" class="chart-svg" preserveAspectRatio="none">`;
+    svg += `<rect x="${x(0)}" y="0" width="${x(rpp-1)-x(0)}" height="${H}" fill="rgba(34,197,94,0.07)"/>`;
+    svg += `<rect x="${x(rpp)}" y="0" width="${x(rpp*2-1)-x(rpp)}" height="${H}" fill="rgba(239,68,68,0.07)"/>`;
+    if (n > rpp*2) svg += `<rect x="${x(rpp*2)}" y="0" width="${x(n-1)-x(rpp*2)}" height="${H}" fill="rgba(56,189,248,0.07)"/>`;
+
+    // Phase dividers
+    svg += `<line x1="${x(rpp)}" y1="0" x2="${x(rpp)}" y2="${H}" stroke="#475569" stroke-dasharray="4"/>`;
+    svg += `<line x1="${x(rpp*2)}" y1="0" x2="${x(rpp*2)}" y2="${H}" stroke="#475569" stroke-dasharray="4"/>`;
+
+    // Phase labels
+    svg += `<text x="${(x(0)+x(rpp-1))/2}" y="14" fill="#22c55e" font-size="10" text-anchor="middle">Reliable</text>`;
+    svg += `<text x="${(x(rpp)+x(rpp*2-1))/2}" y="14" fill="#ef4444" font-size="10" text-anchor="middle">Degraded</text>`;
+    if (n > rpp*2) svg += `<text x="${(x(rpp*2)+x(n-1))/2}" y="14" fill="#38bdf8" font-size="10" text-anchor="middle">Recovery</text>`;
+
+    // Lines
+    function line(arr, color) {
+        let d = arr.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+        return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.5"/>`;
+    }
+    svg += line(testT, '#f59e0b');
+    svg += line(ctrlT, '#38bdf8');
+
+    // Dots
+    testT.forEach((v, i) => { svg += `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="#f59e0b"><title>R${i+1}: ${(v*100).toFixed(1)}%</title></circle>`; });
+    ctrlT.forEach((v, i) => { svg += `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="#38bdf8"><title>R${i+1}: ${(v*100).toFixed(1)}%</title></circle>`; });
+
+    // Y-axis labels
+    for (let v = Math.ceil(minV*10)/10; v <= maxV; v += 0.1) {
+        svg += `<text x="${pad-4}" y="${y(v)+4}" fill="#64748b" font-size="9" text-anchor="end">${(v*100).toFixed(0)}%</text>`;
+        svg += `<line x1="${pad}" y1="${y(v)}" x2="${W-pad}" y2="${y(v)}" stroke="#1e293b"/>`;
+    }
+
+    svg += '</svg>';
+    container.innerHTML = svg + `
+        <div class="chart-legend">
+            <span class="legend-test">UnstableWeatherBot (test)</span>
+            <span class="legend-control">SteadyWeatherBot (control)</span>
+        </div>`;
+}
+
+function renderComparison(data) {
+    const fs = data.final_scores;
+    const div = document.getElementById('agentCompare');
+    div.innerHTML = '';
+    for (const [key, label, role] of [['test', 'UnstableWeatherBot', 'Test agent (varies by phase)'], ['control', 'SteadyWeatherBot', 'Control (consistent)']]) {
+        const info = fs[key];
+        const avgR = data.rating_trajectory[key];
+        const avg = avgR.reduce((a,b)=>a+b, 0) / avgR.length;
+        div.innerHTML += `
+            <div class="agent-box">
+                <div class="name">${info.agent_name}</div>
+                <div class="role">${role}</div>
+                <div class="metric">
+                    <div class="value ${tColor(info.trust_score)}">${(info.trust_score*100).toFixed(1)}%</div>
+                    <div class="label">Final Trust Score</div>
+                </div>
+                <div class="metric">
+                    <div class="value" style="font-size:1.2rem;">${avg.toFixed(3)}</div>
+                    <div class="label">Avg Rating (all phases)</div>
+                </div>
+                <div class="metric">
+                    <div class="value" style="font-size:1rem; color:#94a3b8;">${info.tasks_completed} tasks</div>
+                    <div class="label">Completed</div>
+                </div>
+            </div>`;
+    }
+}
+
+function renderAnalysis(data) {
+    const a = data.analysis;
+    const grid = document.getElementById('analysisGrid');
+    grid.innerHTML = `
+        <div class="analysis-item">
+            <div class="val trust-high">${(a.phase1_end_trust*100).toFixed(1)}%</div>
+            <div class="lbl">Trust after Phase 1 (Reliable)</div>
+        </div>
+        <div class="analysis-item">
+            <div class="val trust-low">${(a.phase2_end_trust*100).toFixed(1)}%</div>
+            <div class="lbl">Trust after Phase 2 (Degraded)</div>
+            <div style="font-size:0.75rem; color:#ef4444; margin-top:4px;">&darr; ${(a.drop_magnitude*100).toFixed(1)}pp drop</div>
+        </div>
+        <div class="analysis-item">
+            <div class="val" style="color:#38bdf8;">${(a.phase3_end_trust*100).toFixed(1)}%</div>
+            <div class="lbl">Trust after Phase 3 (Recovery)</div>
+            <div style="font-size:0.75rem; color:#22c55e; margin-top:4px;">&uarr; ${(a.recovery_magnitude*100).toFixed(1)}pp recovery</div>
+        </div>`;
+}
+
+function renderConclusion(data) {
+    const div = document.getElementById('conclusionText');
+    const isSuccess = data.conclusion.startsWith('SUCCESS');
+    div.parentElement.className = `conclusion ${isSuccess ? 'success' : 'partial'}`;
+    div.innerHTML = `
+        <div class="verdict">${isSuccess ? 'Hypothesis Confirmed' : 'Partial Confirmation'}</div>
+        <p>${data.conclusion}</p>`;
+}
+
+function renderRounds(data) {
+    const tbody = document.getElementById('roundsBody');
+    tbody.innerHTML = '';
+    for (const r of data.rounds) {
+        const gt = r.ground_truth;
+        const tagCls = r.phase === 1 ? 'tag-reliable' : r.phase === 2 ? 'tag-degraded' : 'tag-recovery';
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><strong>R${r.round}</strong></td>
+            <td><span class="phase-tag ${tagCls}">${r.phase_name}</span></td>
+            <td>${r.city}</td>
+            <td>${gt.temperature_c}&deg;C, ${gt.humidity_pct}%<br><small style="color:#94a3b8">${gt.condition}</small></td>
+            <td>
+                ${r.test_agent.response.temperature_c}&deg;C, ${r.test_agent.response.humidity_pct}%<br>
+                <small style="color:${accClr(r.test_agent.accuracy.overall)}">${(r.test_agent.accuracy.overall*100).toFixed(0)}% acc</small>
+                &rarr; <strong>${r.test_agent.rating.toFixed(2)}</strong>
+                ${r.test_agent.trust_after != null ? `<br><small style="color:#94a3b8">trust: ${(r.test_agent.trust_after*100).toFixed(1)}%</small>` : ''}
+            </td>
+            <td>
+                ${r.control_agent.response.temperature_c}&deg;C, ${r.control_agent.response.humidity_pct}%<br>
+                <small style="color:${accClr(r.control_agent.accuracy.overall)}">${(r.control_agent.accuracy.overall*100).toFixed(0)}% acc</small>
+                &rarr; <strong>${r.control_agent.rating.toFixed(2)}</strong>
+                ${r.control_agent.trust_after != null ? `<br><small style="color:#94a3b8">trust: ${(r.control_agent.trust_after*100).toFixed(1)}%</small>` : ''}
+            </td>`;
+        tbody.appendChild(row);
+    }
+}
+
+function renderMeta(data) {
+    document.getElementById('metaCard').innerHTML = `
+        <strong>Experiment Metadata</strong><br>
+        Started: ${data.started_at}<br>
+        Completed: ${data.completed_at}<br>
+        Duration: ${data.elapsed_seconds}s<br>
+        Rounds: ${data.total_rounds} (${data.rounds_per_phase} per phase)<br>
+        Platform: ${data.platform}<br>
+        Trust Layer: <a href="${API_BASE}" target="_blank">${API_BASE}</a>`;
+}
+</script>
+</body>
+</html>
