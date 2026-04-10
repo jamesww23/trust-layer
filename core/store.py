@@ -130,9 +130,21 @@ class MemoryStore(AgentStore):
 
 
 class RedisStore(AgentStore):
-    """Upstash Redis store for Vercel KV deployment."""
+    """Upstash Redis store for Vercel KV deployment.
+
+    Uses an agent index (Redis set) to avoid expensive .keys() scans.
+    The index 'idx:agents' holds all agent IDs; 'idx:tasks' holds all task IDs.
+    This reduces list_all() from O(keyspace) to O(agents).
+    """
 
     KEY_PREFIX = "agent:"
+    AGENT_INDEX = "idx:agents"
+    TASK_INDEX = "idx:tasks"
+
+    # Module-level seeded flag — survives across calls in the same
+    # Vercel serverless instance (warm start), preventing redundant
+    # seed checks on every request.
+    _seeded = False
 
     def __init__(self):
         from upstash_redis import Redis
@@ -156,6 +168,7 @@ class RedisStore(AgentStore):
         if existing is not None:
             raise ValueError(f"Agent '{agent.agent_id}' already registered")
         self._redis.set(self._key(agent.agent_id), json.dumps(agent.to_dict()))
+        self._redis.sadd(self.AGENT_INDEX, agent.agent_id)
 
     def get(self, agent_id: str) -> Agent:
         raw = self._redis.get(self._key(agent_id))
@@ -167,12 +180,22 @@ class RedisStore(AgentStore):
     def upsert(self, agent: Agent) -> None:
         agent.updated_at = datetime.now(timezone.utc).isoformat()
         self._redis.set(self._key(agent.agent_id), json.dumps(agent.to_dict()))
+        self._redis.sadd(self.AGENT_INDEX, agent.agent_id)
 
     def list_all(self) -> list:
-        keys = self._redis.keys(f"{self.KEY_PREFIX}*")
+        # Use index set instead of expensive .keys() scan
+        agent_ids = self._redis.smembers(self.AGENT_INDEX)
+        if not agent_ids:
+            # Fallback: rebuild index from keys (one-time migration)
+            keys = self._redis.keys(f"{self.KEY_PREFIX}*")
+            agent_ids = []
+            for key in keys:
+                aid = key.replace(self.KEY_PREFIX, "") if isinstance(key, str) else key
+                agent_ids.append(aid)
+                self._redis.sadd(self.AGENT_INDEX, aid)
         agents = []
-        for key in keys:
-            raw = self._redis.get(key)
+        for aid in agent_ids:
+            raw = self._redis.get(self._key(aid))
             if raw is not None:
                 data = raw if isinstance(raw, dict) else json.loads(raw)
                 agents.append(Agent.from_dict(data))
@@ -196,14 +219,22 @@ class RedisStore(AgentStore):
         return [agent for agent, _ in scored]
 
     def reset(self) -> None:
-        for prefix in [self.KEY_PREFIX, self.TASK_PREFIX]:
-            keys = self._redis.keys(f"{prefix}*")
-            for key in keys:
-                self._redis.delete(key)
+        # Delete agents
+        agent_ids = self._redis.smembers(self.AGENT_INDEX) or []
+        for aid in agent_ids:
+            self._redis.delete(self._key(aid))
+        self._redis.delete(self.AGENT_INDEX)
+        # Delete tasks
+        task_ids = self._redis.smembers(self.TASK_INDEX) or []
+        for tid in task_ids:
+            self._redis.delete(self._task_key(tid))
+        self._redis.delete(self.TASK_INDEX)
+        RedisStore._seeded = False
 
     def is_empty(self) -> bool:
-        keys = self._redis.keys(f"{self.KEY_PREFIX}*")
-        return len(keys) == 0
+        # Check index set — 1 command instead of .keys() scan
+        count = self._redis.scard(self.AGENT_INDEX)
+        return count == 0
 
     # --- Task methods ---
 
@@ -215,6 +246,7 @@ class RedisStore(AgentStore):
     def save_task(self, task: Task) -> None:
         task.updated_at = datetime.now(timezone.utc).isoformat()
         self._redis.set(self._task_key(task.task_id), json.dumps(task.to_dict()))
+        self._redis.sadd(self.TASK_INDEX, task.task_id)
 
     def get_task(self, task_id: str) -> Task:
         raw = self._redis.get(self._task_key(task_id))
@@ -223,29 +255,38 @@ class RedisStore(AgentStore):
         data = raw if isinstance(raw, dict) else json.loads(raw)
         return Task.from_dict(data)
 
-    def get_tasks_for_agent(self, agent_id: str, status: str = None) -> list:
-        keys = self._redis.keys(f"{self.TASK_PREFIX}*")
-        results = []
-        for key in keys:
-            raw = self._redis.get(key)
+    def _all_tasks(self) -> list:
+        """Load all tasks using the index set (no .keys() scan)."""
+        task_ids = self._redis.smembers(self.TASK_INDEX)
+        if not task_ids:
+            # Fallback: rebuild index from keys (one-time migration)
+            keys = self._redis.keys(f"{self.TASK_PREFIX}*")
+            task_ids = []
+            for key in keys:
+                tid = key.replace(self.TASK_PREFIX, "") if isinstance(key, str) else key
+                task_ids.append(tid)
+                self._redis.sadd(self.TASK_INDEX, tid)
+        tasks = []
+        for tid in task_ids:
+            raw = self._redis.get(self._task_key(tid))
             if raw is not None:
                 data = raw if isinstance(raw, dict) else json.loads(raw)
-                task = Task.from_dict(data)
-                if task.provider_id == agent_id:
-                    if status is None or task.status == status:
-                        results.append(task)
+                tasks.append(Task.from_dict(data))
+        return tasks
+
+    def get_tasks_for_agent(self, agent_id: str, status: str = None) -> list:
+        results = []
+        for task in self._all_tasks():
+            if task.provider_id == agent_id:
+                if status is None or task.status == status:
+                    results.append(task)
         results.sort(key=lambda t: t.created_at, reverse=True)
         return results
 
     def get_tasks_by_requester(self, agent_id: str) -> list:
-        keys = self._redis.keys(f"{self.TASK_PREFIX}*")
         results = []
-        for key in keys:
-            raw = self._redis.get(key)
-            if raw is not None:
-                data = raw if isinstance(raw, dict) else json.loads(raw)
-                task = Task.from_dict(data)
-                if task.requester_id == agent_id:
-                    results.append(task)
+        for task in self._all_tasks():
+            if task.requester_id == agent_id:
+                results.append(task)
         results.sort(key=lambda t: t.created_at, reverse=True)
         return results

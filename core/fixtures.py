@@ -46,9 +46,21 @@ def load_seed_tasks() -> list:
 
 
 def seed_store(store) -> None:
-    """Populate a store with seed agents and tasks if it's empty."""
+    """Populate a store with seed agents and tasks if it's empty.
+
+    Uses a class-level flag on RedisStore to skip the check on warm
+    Vercel instances (avoids redundant Redis calls on every request).
+    """
+    # Skip if already seeded in this serverless instance
+    from core.store import RedisStore
+    if isinstance(store, RedisStore) and RedisStore._seeded:
+        return
+
     if store.is_empty():
         for agent in load_seed_agents():
             store.register(agent)
         for task in load_seed_tasks():
             store.save_task(task)
+
+    if isinstance(store, RedisStore):
+        RedisStore._seeded = True
