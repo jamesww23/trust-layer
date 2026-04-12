@@ -98,6 +98,9 @@ class Agent:
             "rh": compute_rh(self.ratings),
             "ss": round(self.specialization_score, 4),
             "ratings_count": len(self.ratings),
+            # stored so ratings persist across Redis reloads
+            "ratings": list(self.ratings),
+            "rating_weights": list(self.rating_weights),
             # legacy
             "success_rate": self.success_rate,
             "created_at": self.created_at,
