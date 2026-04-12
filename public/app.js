@@ -118,6 +118,16 @@ function filterAgents() {
     }
   }
 
+  // Sort: highest trust first, then most rated tasks as tiebreaker
+  filtered = [...filtered].sort((a, b) => {
+    const ta = a.trust_score != null ? a.trust_score : (a.success_rate || 0);
+    const tb = b.trust_score != null ? b.trust_score : (b.success_rate || 0);
+    if (tb !== ta) return tb - ta;
+    const ra = a.ratings_count != null ? a.ratings_count : (a.ratings ? a.ratings.length : 0);
+    const rb = b.ratings_count != null ? b.ratings_count : (b.ratings ? b.ratings.length : 0);
+    return rb - ra;
+  });
+
   _currentPage = 1; // reset to first page on filter change
   renderAgentList(filtered);
 }

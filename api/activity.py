@@ -15,32 +15,30 @@ class handler(BaseHTTPRequestHandler):
         try:
             store = RedisStore()
 
-            # Collect all tasks from store
-            all_tasks = []
-            for agent in store.list_all():
-                for task in store.get_tasks_for_agent(agent.agent_id):
-                    all_tasks.append(task)
+            # Fetch all tasks in one pass (avoids N×M Redis calls)
+            all_tasks = store._all_tasks()
 
-            # Deduplicate by task_id
-            seen = set()
-            unique = []
-            for t in all_tasks:
-                if t.task_id not in seen:
-                    seen.add(t.task_id)
-                    unique.append(t)
+            # Sort by most recently updated, take top 20
+            all_tasks.sort(key=lambda t: t.updated_at, reverse=True)
+            top20 = all_tasks[:20]
 
-            # Sort by most recently updated
-            unique.sort(key=lambda t: t.updated_at, reverse=True)
+            # Batch-resolve unique agent names (at most 40 lookups, never N×M)
+            agent_ids_needed = set()
+            for t in top20:
+                agent_ids_needed.add(t.requester_id)
+                agent_ids_needed.add(t.provider_id)
+            agent_name_map = {}
+            for aid in agent_ids_needed:
+                ag = store.get(aid)
+                agent_name_map[aid] = ag.agent_name if ag else aid
 
-            # Enrich with agent names (limit to 20 most recent)
+            # Enrich with agent names
             events = []
-            for t in unique[:20]:
-                requester = store.get(t.requester_id)
-                provider = store.get(t.provider_id)
+            for t in top20:
                 events.append({
                     **t.to_dict(),
-                    "requester_name": requester.agent_name if requester else t.requester_id,
-                    "provider_name": provider.agent_name if provider else t.provider_id,
+                    "requester_name": agent_name_map.get(t.requester_id, t.requester_id),
+                    "provider_name": agent_name_map.get(t.provider_id, t.provider_id),
                 })
 
             self.send_response(200)
