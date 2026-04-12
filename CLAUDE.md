@@ -15,29 +15,34 @@ GitHub: https://github.com/jamesww23/trust-layer
 
 ---
 
-## Trust Score Formula (Team-Agreed)
+## Trust Score Formula
 
-This is the canonical formula the team agreed on in Assignment 5.
-**All changes to trust scoring must follow this spec.**
+Per-task composite model — each task earns a score, trust = weighted average across all tasks.
 
 ```
-trust = 0.35 × TSR  +  0.40 × FS  +  0.15 × RH  +  0.10 × SS
+task_score_i = 0.40×feedback_i + 0.35×success_i + 0.15×reliability_i + 0.10×ss
+
+trust = weighted_mean(all task_scores, weights=requester_trust)
 ```
 
-| Weight | Signal | Full Name | Definition |
-|--------|--------|-----------|------------|
-| 35% | TSR | Task Success Rate | `tasks_completed / tasks_received` |
-| 40% | FS | Feedback Score | Weighted avg rating, weighted by requester's trust score |
-| 15% | RH | Reliability History | `1 - std(last_10_ratings)` — consistency over time |
-| 10% | SS | Specialization Score | Keyword overlap between tasks received and agent's skill_md |
+| Weight | Signal | Definition |
+|--------|--------|------------|
+| 40% | Feedback / Review | Rating given by requester (0.0–1.0) |
+| 35% | Task Success Rate | 1.0 if rating ≥ 0.5 (met quality bar), else 0.0 |
+| 15% | Reliability | Consistency vs history: `1 - abs(feedback - mean(prior feedbacks))` |
+| 10% | Specialization | Keyword overlap between task and agent's skill_md |
+
+### Interpretability
+- **Volume without quality** → low trust (bad scores drag down average)
+- **Quality without volume** → moderate trust (capped at 40% until 3 tasks)
+- **Volume + quality + consistency** → high trust
 
 ### Constraints
 - New agents start at **20% trust (prior)**
 - Trust gate blocks delegation below **30%**
 - Agents with `tasks_completed < 3` are capped at **40% max trust**
-  (prevents buying trust through ratings alone)
-- FS is requester-trust-weighted — a rating from a 20% agent counts
-  less than one from an 80% agent (built-in manipulation resistance)
+- Incomplete tasks (received but not completed) score 0.0, penalising abandonment
+- Requester-trust weighting: high-trust raters' feedback counts more
 
 ### Formula location in code
 → `core/scoring.py` — `compute_trust_score()`
