@@ -67,6 +67,24 @@ class handler(BaseHTTPRequestHandler):
                 self._error(400, str(e))
                 return
 
+            # Enforce mandatory feedback: block if requester has any completed
+            # but unrated tasks with this provider. Agents must rate before
+            # they can delegate again — feedback is not optional.
+            all_tasks = store._all_tasks()
+            unrated = [
+                t for t in all_tasks
+                if t.requester_id == requester_id
+                and t.provider_id == provider_id
+                and t.status == "completed"
+            ]
+            if unrated:
+                self._error(400, (
+                    f"Feedback required: you have {len(unrated)} completed task(s) "
+                    f"with '{provider.agent_name}' that have not been rated. "
+                    f"Submit feedback via POST /api/submit-feedback before delegating again."
+                ))
+                return
+
             # Create the task and track on provider
             task_id = "task_" + uuid.uuid4().hex[:12]
             task = Task(
