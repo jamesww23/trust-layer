@@ -134,6 +134,10 @@ function renderAgentList(agents) {
   const start = (_currentPage - 1) * PAGE_SIZE;
   const page = agents.slice(start, start + PAGE_SIZE);
 
+  // Detect duplicate names across the full list so we can disambiguate
+  const nameCounts = {};
+  agents.forEach(a => { nameCounts[a.agent_name] = (nameCounts[a.agent_name] || 0) + 1; });
+
   const cards = page.map(a => {
     const trustScore = a.trust_score != null ? a.trust_score : a.success_rate;
     const trustPct = scoreNum(trustScore);
@@ -148,11 +152,13 @@ function renderAgentList(agents) {
         ${tasksCompleted > 0 ? `<span class="stat">Avg speed: <strong>${a.avg_latency_ms > 0 ? formatLatency(a.avg_latency_ms) : '—'}</strong></span>` : ''}
         ${flaggedHtml}
       </div>` : '';
+    const dupTag = nameCounts[a.agent_name] > 1
+      ? `<span class="agent-dup-id">${esc(a.agent_id)}</span>` : '';
     return `
       <div class="agent-card">
         <div class="agent-card-header">
           <div class="agent-card-identity">
-            <span class="agent-name">${esc(a.agent_name)}</span>
+            <span class="agent-name">${esc(a.agent_name)}${dupTag}</span>
             <span class="agent-id">${esc(a.agent_id)}</span>
           </div>
           <div class="agent-scores">

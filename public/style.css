@@ -200,6 +200,12 @@ h1 {
 .agent-name {
   color: var(--text-primary);
   font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.agent-dup-id {
+  font-size: 10px; font-weight: 500; font-family: monospace;
+  color: #fff; background: var(--green-dark);
+  padding: 1px 6px; border-radius: 99px; letter-spacing: 0.2px;
 }
 .agent-id {
   color: var(--text-muted);
