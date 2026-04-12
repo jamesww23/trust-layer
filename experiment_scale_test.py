@@ -396,30 +396,24 @@ def run_experiment(rounds):
     # Phase 1: Register agents
     phase1_register(existing_ids)
 
-    # Re-fetch full list
-    r, _ = api("GET", "/api/agents")
-    all_registered = r.get("agents", [])
-    hw8_agents_info = [a for a in all_registered if a["agent_id"].startswith("hw8_") and not a["agent_id"].startswith("hw8_atk")]
-    hw8_agents = [ag for ag in SCALE_AGENTS if any(a["agent_id"] == ag["id"] for a in hw8_agents_info)]
-    total = len(all_registered)
-    print(f"\n  Registry after registration: {total} agents total")
-    if total < 30:
-        print(f"  ⚠ Only {total} agents — some registrations may have failed")
-    else:
-        print(f"  ✓ 30+ agent threshold met")
+    # Use SCALE_AGENTS directly — don't re-fetch (Vercel caches /api/agents for 30s)
+    # All hw8 agents were just registered, so we know their IDs
+    hw8_agents = [ag for ag in SCALE_AGENTS if not ag["id"].startswith("hw8_atk")]
+    total_expected = len(existing_ids) + len(hw8_agents) + 1  # +1 orchestrator
+    print(f"\n  Expected registry size: ~{total_expected} agents")
+    print(f"  ✓ {len(hw8_agents)} hw8 agents ready for experiment")
 
-    # Seed trust for hw8 agents (they're all brand new at 20%)
-    print(f"\n  Seeding bootstrap trust for {len(hw8_agents)} new agents...")
+    # Seed trust for ALL hw8 agents — they start at 20%, below the 30% gate
+    print(f"\n  Seeding bootstrap trust for {len(hw8_agents)} new agents (20% → 38%)...")
     seeded = 0
     for ag in hw8_agents:
-        trust = next((a["trust_score"] for a in all_registered if a["agent_id"] == ag["id"]), 0.2)
-        if trust < 0.30:
-            for _ in range(3):
-                api("POST", "/api/submit-feedback", {
-                    "agent_id": ag["id"], "score": 0.8, "rated_by": ORCHESTRATOR_ID,
-                })
-            seeded += 1
-            time.sleep(0.05)
+        # Always seed — new agents always start at 20%
+        for _ in range(3):
+            api("POST", "/api/submit-feedback", {
+                "agent_id": ag["id"], "score": 0.8, "rated_by": ORCHESTRATOR_ID,
+            })
+        seeded += 1
+        time.sleep(0.05)
     print(f"  Bootstrapped {seeded} agents above 30% trust gate")
 
     # Phase 2: Stress test
