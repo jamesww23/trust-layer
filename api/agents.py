@@ -39,7 +39,7 @@ class handler(BaseHTTPRequestHandler):
                     if pairs:
                         agent.ratings = [r for r, _ in pairs]
                         agent.rating_weights = [w for _, w in pairs]
-                        store.register(agent)
+                        store.upsert(agent)
 
             agents.sort(key=lambda a: -a.trust_score)
 
