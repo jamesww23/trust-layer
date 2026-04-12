@@ -2,8 +2,10 @@
 
 const API = window.location.origin;
 
-let _allAgents = [];     // cached for client-side filtering
+let _allAgents = [];        // cached for client-side filtering
 let _activeCategory = null; // active filter chip keyword
+let _currentPage = 1;       // pagination
+const PAGE_SIZE = 10;
 
 document.addEventListener("DOMContentLoaded", loadAgents);
 
@@ -99,7 +101,6 @@ function filterAgents() {
 
   let filtered = _allAgents;
 
-  // Apply category chip filter first
   if (_activeCategory) {
     filtered = filtered.filter(a => {
       const text = ((a.agent_name || "") + " " + (a.skill_md || "")).toLowerCase();
@@ -107,7 +108,6 @@ function filterAgents() {
     });
   }
 
-  // Then apply text search on top
   if (query) {
     const words = query.split(/\s+/).filter(w => w.length >= 2);
     if (words.length > 0) {
@@ -118,29 +118,39 @@ function filterAgents() {
     }
   }
 
+  _currentPage = 1; // reset to first page on filter change
   renderAgentList(filtered);
 }
 
 function renderAgentList(agents) {
   const el = document.getElementById("agent-list");
   if (!agents || agents.length === 0) {
-    el.innerHTML = '<p class="empty-state">No agents registered yet. Be the first!</p>';
+    el.innerHTML = '<p class="empty-state">No agents found. Try a different search.</p>';
     return;
   }
-  el.innerHTML = agents.map(a => {
+
+  const totalPages = Math.ceil(agents.length / PAGE_SIZE);
+  _currentPage = Math.min(_currentPage, totalPages);
+  const start = (_currentPage - 1) * PAGE_SIZE;
+  const page = agents.slice(start, start + PAGE_SIZE);
+
+  const cards = page.map(a => {
     const trustScore = a.trust_score != null ? a.trust_score : a.success_rate;
     const trustPct = scoreNum(trustScore);
     const tasksCompleted = a.tasks_completed || 0;
+    const barPct = Math.round(trustScore * 100);
     const skillHtml = renderSkillMd(a.skill_md);
     const flaggedHtml = a.flagged > 0
-      ? `<span class="stat flagged-stat">Blocked: <strong>${a.flagged}×</strong></span>`
-      : '';
-    // Trust bar fill width
-    const barPct = Math.round(trustScore * 100);
+      ? `<span class="stat flagged-stat">Blocked: <strong>${a.flagged}×</strong></span>` : '';
+    const statsHtml = (tasksCompleted > 0 || a.flagged > 0) ? `
+      <div class="agent-stats">
+        ${tasksCompleted > 0 ? `<span class="stat">Avg speed: <strong>${a.avg_latency_ms > 0 ? formatLatency(a.avg_latency_ms) : '—'}</strong></span>` : ''}
+        ${flaggedHtml}
+      </div>` : '';
     return `
       <div class="agent-card">
         <div class="agent-card-header">
-          <div>
+          <div class="agent-card-identity">
             <span class="agent-name">${esc(a.agent_name)}</span>
             <span class="agent-id">${esc(a.agent_id)}</span>
           </div>
@@ -160,15 +170,34 @@ function renderAgentList(agents) {
             <div class="trust-bar-fill" style="width:${barPct}%"></div>
           </div>
         </div>
-        <div class="agent-skill-md">${skillHtml}</div>
-        ${(tasksCompleted > 0 || a.flagged > 0) ? `
-        <div class="agent-stats">
-          ${tasksCompleted > 0 ? `<span class="stat">Avg speed: <strong>${a.avg_latency_ms > 0 ? formatLatency(a.avg_latency_ms) : '—'}</strong></span>` : ''}
-          ${flaggedHtml}
-        </div>` : ''}
-      </div>
-    `;
+        <details class="agent-details">
+          <summary class="agent-read-more">Read more</summary>
+          <div class="agent-details-body">
+            <div class="agent-skill-md">${skillHtml}</div>
+            ${statsHtml}
+          </div>
+        </details>
+      </div>`;
   }).join("");
+
+  // Pagination controls
+  const paginationHtml = totalPages > 1 ? `
+    <div class="pagination">
+      <button class="page-btn" onclick="changePage(${_currentPage - 1}, ${JSON.stringify(agents).split('"').join("'").length > 0 ? '_lastFilteredAgents' : '[]'})" ${_currentPage === 1 ? 'disabled' : ''}>&larr; Prev</button>
+      <span class="page-info">Page ${_currentPage} of ${totalPages} &nbsp;·&nbsp; ${agents.length} agents</span>
+      <button class="page-btn" onclick="changePage(${_currentPage + 1}, '_lastFilteredAgents')" ${_currentPage === totalPages ? 'disabled' : ''}>Next &rarr;</button>
+    </div>` : `<p class="page-info-simple">${agents.length} agent${agents.length !== 1 ? 's' : ''}</p>`;
+
+  el.innerHTML = cards + paginationHtml;
+  // Store for pagination
+  el.dataset.agentCount = agents.length;
+  window._lastFilteredAgents = agents;
+}
+
+function changePage(page, _unused) {
+  _currentPage = page;
+  renderAgentList(window._lastFilteredAgents || _allAgents);
+  document.getElementById("agent-list").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function renderSkillMd(md) {
@@ -194,27 +223,34 @@ function renderRankings(agents) {
   }
   const trustOf = a => a.trust_score != null ? a.trust_score : a.success_rate;
   const sorted = [...agents].sort((a, b) => trustOf(b) - trustOf(a) || b.total_runs - a.total_runs);
-  const maxRuns = Math.max(...sorted.map(a => a.total_runs), 1);
+  const top5 = sorted.slice(0, 5);
+  const maxRuns = Math.max(...top5.map(a => a.total_runs), 1);
 
-  el.innerHTML = sorted.map((a, i) => {
+  // Detect duplicate names so we can disambiguate
+  const nameCounts = {};
+  top5.forEach(a => { nameCounts[a.agent_name] = (nameCounts[a.agent_name] || 0) + 1; });
+
+  el.innerHTML = top5.map((a, i) => {
     const popularity = a.total_runs > 0 ? Math.round((a.total_runs / maxRuns) * 100) : 0;
     const medal = i === 0 ? ' medal' : '';
+    // Show short ID suffix if name is duplicated
+    const displayName = nameCounts[a.agent_name] > 1
+      ? `${esc(a.agent_name)} <span class="rank-id">${esc(a.agent_id)}</span>`
+      : esc(a.agent_name);
     const flaggedTag = a.flagged > 0
-      ? `<span class="rank-flagged">${a.flagged}x blocked</span>`
-      : '';
+      ? `<span class="rank-flagged">${a.flagged}× blocked</span>` : '';
     return `
       <div class="rank-row">
         <span class="rank-num ${i < 3 ? 'top' : ''}">${i + 1}</span>
         <div class="rank-info">
-          <span class="rank-name">${esc(a.agent_name)}</span>
+          <span class="rank-name">${displayName}</span>
           <div class="rank-bar-container">
             <div class="rank-bar" style="width:${popularity}%"></div>
           </div>
-          <span class="rank-pop">${a.total_runs} tasks ${flaggedTag}</span>
+          <span class="rank-pop">${a.tasks_completed || a.total_runs} tasks ${flaggedTag}</span>
         </div>
-        <span class="rank-score${medal}">${scoreNum(a.trust_score != null ? a.trust_score : a.success_rate)}%</span>
-      </div>
-    `;
+        <span class="rank-score${medal}">${scoreNum(trustOf(a))}%</span>
+      </div>`;
   }).join("");
 }
 
