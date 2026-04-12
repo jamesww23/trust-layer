@@ -47,7 +47,7 @@ class handler(BaseHTTPRequestHandler):
                 before = len(agent.ratings)
                 agent.ratings = [r for r, _ in new_pairs]
                 agent.rating_weights = [w for _, w in new_pairs]
-                store.save(agent)
+                store.register(agent)
                 results.append({
                     "agent_id": agent.agent_id,
                     "agent_name": agent.agent_name,
