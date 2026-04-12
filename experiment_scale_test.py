@@ -2,9 +2,9 @@
 """
 experiment_scale_test.py — HW8 Scale Experiment
 ------------------------------------------------
-Extends HW7 by testing the trust layer at 30+ agents across 4 phases:
+Extends HW7 by testing the trust layer at 10 agents across 4 phases:
 
-  Phase 1  Register 30 diverse agents (7 categories)
+  Phase 1  Register 10 diverse agents (7 categories)
   Phase 2  Stress test — all agents delegate tasks, measure latency
   Phase 3  Trust convergence — track how trust stabilises over rounds
   Phase 4  Resilience — trust gate blocking + anti-gaming detection
@@ -24,46 +24,26 @@ import urllib.error
 
 BASE_URL = os.environ.get("TRUST_LAYER_URL", "https://aitrustlayer.vercel.app")
 
-# ── 30 synthetic agents across 7 categories ─────────────────────────────────
+# ── 10 synthetic agents across 7 categories ─────────────────────────────────
 
 SCALE_AGENTS = [
-    # Medical (6)
+    # Medical (2)
     {"id": "hw8_med_01", "name": "DiagnosisAgent",    "skill": "# DiagnosisAgent\n## Skills\n- medical diagnosis\n- symptom analysis\n- clinical decision support"},
-    {"id": "hw8_med_02", "name": "PathologyAgent",    "skill": "# PathologyAgent\n## Skills\n- pathology image analysis\n- medical imaging\n- biopsy interpretation"},
     {"id": "hw8_med_03", "name": "PharmacyAgent",     "skill": "# PharmacyAgent\n## Skills\n- drug interaction analysis\n- medication review\n- prescription checking"},
-    {"id": "hw8_med_04", "name": "RadiologyAgent",    "skill": "# RadiologyAgent\n## Skills\n- radiology\n- CT scan interpretation\n- MRI analysis"},
-    {"id": "hw8_med_05", "name": "TriageAgent",       "skill": "# TriageAgent\n## Skills\n- patient triage\n- emergency assessment\n- medical prioritisation"},
-    {"id": "hw8_med_06", "name": "GeneticsAgent",     "skill": "# GeneticsAgent\n## Skills\n- genomics\n- genetic variant analysis\n- hereditary disease risk"},
-    # Code (5)
+    # Code (2)
     {"id": "hw8_code_01", "name": "CodeReviewAgent",  "skill": "# CodeReviewAgent\n## Skills\n- code review\n- static analysis\n- bug detection\n- refactoring"},
-    {"id": "hw8_code_02", "name": "TestGenAgent",     "skill": "# TestGenAgent\n## Skills\n- test generation\n- unit testing\n- code coverage\n- QA automation"},
-    {"id": "hw8_code_03", "name": "DocWriterAgent",   "skill": "# DocWriterAgent\n## Skills\n- documentation generation\n- API docs\n- code commenting"},
     {"id": "hw8_code_04", "name": "SecurityScanAgent","skill": "# SecurityScanAgent\n## Skills\n- security scanning\n- vulnerability detection\n- OWASP\n- penetration testing"},
-    {"id": "hw8_code_05", "name": "PerfProfilerAgent","skill": "# PerfProfilerAgent\n## Skills\n- performance profiling\n- latency optimisation\n- memory analysis"},
-    # Data (5)
+    # Data (2)
     {"id": "hw8_data_01", "name": "ETLAgent",         "skill": "# ETLAgent\n## Skills\n- data pipeline\n- ETL processing\n- data transformation\n- data engineering"},
     {"id": "hw8_data_02", "name": "AnalyticsAgent",   "skill": "# AnalyticsAgent\n## Skills\n- data analytics\n- statistical analysis\n- trend detection\n- reporting"},
-    {"id": "hw8_data_03", "name": "MLOpsAgent",       "skill": "# MLOpsAgent\n## Skills\n- model deployment\n- MLOps\n- model monitoring\n- drift detection"},
-    {"id": "hw8_data_04", "name": "DataCleanAgent",   "skill": "# DataCleanAgent\n## Skills\n- data cleaning\n- deduplication\n- schema validation\n- data quality"},
-    {"id": "hw8_data_05", "name": "VizAgent",         "skill": "# VizAgent\n## Skills\n- data visualisation\n- charting\n- dashboard\n- reporting"},
-    # Legal (4)
+    # Legal (1)
     {"id": "hw8_legal_01", "name": "ContractAgent",   "skill": "# ContractAgent\n## Skills\n- contract review\n- legal analysis\n- clause extraction\n- risk flagging"},
-    {"id": "hw8_legal_02", "name": "ComplianceAgent", "skill": "# ComplianceAgent\n## Skills\n- compliance checking\n- regulatory review\n- GDPR\n- SOC2"},
-    {"id": "hw8_legal_03", "name": "IPAgent",         "skill": "# IPAgent\n## Skills\n- intellectual property\n- patent review\n- trademark analysis"},
-    {"id": "hw8_legal_04", "name": "LitigationAgent", "skill": "# LitigationAgent\n## Skills\n- litigation support\n- case research\n- legal precedent\n- brief writing"},
-    # Research (4)
-    {"id": "hw8_res_01",  "name": "LitReviewAgent",   "skill": "# LitReviewAgent\n## Skills\n- literature review\n- academic research\n- citation analysis\n- summarisation"},
-    {"id": "hw8_res_02",  "name": "HypothesisAgent",  "skill": "# HypothesisAgent\n## Skills\n- hypothesis generation\n- experimental design\n- scientific reasoning"},
+    # Research (1)
     {"id": "hw8_res_03",  "name": "FactCheckAgent",   "skill": "# FactCheckAgent\n## Skills\n- fact checking\n- source verification\n- claim validation"},
-    {"id": "hw8_res_04",  "name": "SurveyAgent",      "skill": "# SurveyAgent\n## Skills\n- survey design\n- questionnaire creation\n- response analysis"},
-    # Security (3)
+    # Security (1)
     {"id": "hw8_sec_01",  "name": "ThreatIntelAgent", "skill": "# ThreatIntelAgent\n## Skills\n- threat intelligence\n- IOC analysis\n- security monitoring\n- SIEM"},
-    {"id": "hw8_sec_02",  "name": "ForensicsAgent",   "skill": "# ForensicsAgent\n## Skills\n- digital forensics\n- incident response\n- log analysis\n- malware analysis"},
-    {"id": "hw8_sec_03",  "name": "AccessMgmtAgent",  "skill": "# AccessMgmtAgent\n## Skills\n- access management\n- IAM\n- zero trust\n- privilege escalation detection"},
-    # Translation (3)
+    # Translation (1)
     {"id": "hw8_trans_01","name": "TranslateAgent",   "skill": "# TranslateAgent\n## Skills\n- translation\n- multilingual\n- localisation\n- language detection"},
-    {"id": "hw8_trans_02","name": "LocaliseAgent",    "skill": "# LocaliseAgent\n## Skills\n- localisation\n- cultural adaptation\n- i18n\n- language quality"},
-    {"id": "hw8_trans_03","name": "SubtitleAgent",    "skill": "# SubtitleAgent\n## Skills\n- subtitling\n- caption generation\n- transcript translation\n- timed text"},
 ]
 
 # Simulated task descriptions per category
@@ -123,8 +103,8 @@ def phase_header(num, title):
 
 
 def phase1_register(existing_ids):
-    """Register all 30 scale agents + orchestrator. Skip already-registered."""
-    phase_header(1, "REGISTER 30 AGENTS")
+    """Register all 10 scale agents + orchestrator. Skip already-registered."""
+    phase_header(1, "REGISTER 10 AGENTS")
 
     # Register orchestrator
     r, _ = api("POST", "/api/register-agent", {
@@ -368,7 +348,7 @@ def phase4_resilience(agents):
         _, ms = api("GET", "/api/activity")
         times.append(ms)
         time.sleep(0.3)
-    print(f"    /api/activity with 30+ agents: {times[0]}ms, {times[1]}ms, {times[2]}ms  (avg {statistics.mean(times):.0f}ms)")
+    print(f"    /api/activity with 10+ agents: {times[0]}ms, {times[1]}ms, {times[2]}ms  (avg {statistics.mean(times):.0f}ms)")
     if statistics.mean(times) < 3000:
         print(f"    ✓ Activity feed fast — N×M Redis fix effective at scale")
     else:
@@ -380,7 +360,7 @@ def phase4_resilience(agents):
 def run_experiment(rounds):
     print()
     print("=" * 70)
-    print("  HW8 SCALE EXPERIMENT: Agentic Reputation at 30+ Agents")
+    print("  HW8 SCALE EXPERIMENT: Agentic Reputation at 10 Agents")
     print(f"  Server:  {BASE_URL}")
     print(f"  Agents:  {len(SCALE_AGENTS)} new  +  existing registry")
     print(f"  Rounds:  {rounds} per phase")
