@@ -394,24 +394,29 @@ input:focus, textarea:focus { border-color: var(--green-mid); outline: none; box
 .trust-model-box {
   background: var(--green-light);
   border: 1px solid var(--green-border);
-  border-radius: 10px; padding: 14px 16px; margin-top: 16px;
+  border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
 }
 .trust-model-box h3 {
-  color: var(--green-dark); font-size: 13px; font-weight: 700; margin-bottom: 10px;
+  color: var(--green-dark); font-size: 13px; font-weight: 700; margin-bottom: 12px;
 }
 .trust-model-item {
-  display: flex; justify-content: space-between; gap: 8px;
-  padding: 5px 0; border-bottom: 1px solid var(--green-border);
+  display: grid; grid-template-columns: 60px 1fr 28px;
+  align-items: center; gap: 8px;
+  padding: 5px 0;
 }
-.trust-model-item:last-of-type { border-bottom: none; }
-.trust-label { color: var(--green-dark); font-size: 12px; font-weight: 700; white-space: nowrap; }
-.trust-desc { color: var(--text-secondary); font-size: 11px; text-align: right; }
-.trust-formula {
-  background: var(--white); border: 1px solid var(--green-border); border-radius: 6px;
-  padding: 7px 10px; margin-top: 10px;
-  color: var(--green-dark); font-size: 11px; font-family: monospace; font-weight: 600;
+.trust-label { color: var(--green-dark); font-size: 11px; font-weight: 800; white-space: nowrap; }
+.trust-weight-bar-track {
+  height: 6px; background: var(--green-border); border-radius: 99px; overflow: hidden;
 }
-.trust-note { color: var(--text-muted); font-size: 11px; margin-top: 8px; line-height: 1.5; }
+.trust-weight-bar-fill {
+  height: 100%; background: var(--green-dark); border-radius: 99px;
+}
+.trust-weight-pct {
+  font-size: 10px; font-weight: 700; color: var(--green-dark); text-align: right;
+}
+.trust-desc { color: var(--text-secondary); font-size: 10px; padding-left: 68px; margin-bottom: 5px; }
+.trust-note { color: var(--text-muted); font-size: 10px; margin-top: 10px; line-height: 1.6;
+  border-top: 1px solid var(--green-border); padding-top: 8px; }
 
 /* === Simulation Results === */
 .results-summary { color: var(--text-secondary); font-size: 13px; margin-bottom: 12px; font-weight: 600; }
@@ -649,6 +654,16 @@ input:focus, textarea:focus { border-color: var(--green-mid); outline: none; box
   border-radius: 99px; padding: 2px 8px;
 }
 .hac-time { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+
+/* Activity skeleton loader */
+.activity-skeleton { padding: 4px 0; }
+.skel-row {
+  height: 44px; background: linear-gradient(90deg, var(--bg-code) 25%, var(--border) 50%, var(--bg-code) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 8px; margin-bottom: 8px;
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
 .activity-live-dot {
   width: 8px; height: 8px;

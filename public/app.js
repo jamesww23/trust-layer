@@ -799,49 +799,65 @@ function showTrustDelta(taskId, score, beforePct, afterPct, arrow, arrowClass) {
 // 8. ACTIVITY FEED
 // ============================================================
 
+let _activityCache = null;
+
 async function loadActivity() {
   const el = document.getElementById("activity-feed");
+
+  // Show cached data instantly while fetching fresh data
+  if (_activityCache) {
+    renderActivityEvents(_activityCache, el);
+  } else {
+    el.innerHTML = '<div class="activity-skeleton"><div class="skel-row"></div><div class="skel-row"></div><div class="skel-row"></div></div>';
+  }
+
   try {
     const res = await fetch(API + "/api/activity");
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Failed to load activity");
     const events = data.activity || [];
-    if (events.length === 0) {
-      el.innerHTML = '<p class="empty-state">No activity yet. Delegate a task to get started.</p>';
-      return;
-    }
-    el.innerHTML = events.map(e => {
-      const statusClass = e.status === "pending" ? "status-pending" : e.status === "completed" ? "status-completed" : "status-rated";
-      let detail = "";
-      if (e.status === "pending") {
-        detail = `<strong>${esc(e.requester_name)}</strong> delegated task to <strong>${esc(e.provider_name)}</strong>`;
-      } else if (e.status === "completed") {
-        detail = `<strong>${esc(e.provider_name)}</strong> submitted result for <strong>${esc(e.requester_name)}</strong>`;
-      } else if (e.status === "rated") {
-        let trustDelta = "";
-        if (e.trust_before != null && e.trust_after != null) {
-          const bPct = Math.round(e.trust_before * 100);
-          const aPct = Math.round(e.trust_after * 100);
-          const arrowCls = aPct >= bPct ? "arrow-up" : "arrow-down";
-          const arrowChar = aPct >= bPct ? "\u2191" : "\u2193";
-          trustDelta = ` &mdash; Trust: ${bPct}% <span class="${arrowCls}">${arrowChar}</span> ${aPct}%`;
-        }
-        detail = `<strong>${esc(e.requester_name)}</strong> rated <strong>${esc(e.provider_name)}</strong>: ${Math.round(e.rating * 10)}/10${trustDelta}`;
-      }
-      const ts = e.updated_at || e.created_at;
-      const timeStr = ts ? new Date(ts).toLocaleString() : "";
-      return `
-        <div class="activity-row">
-          <span class="activity-time">${timeStr}</span>
-          <span class="task-status ${statusClass}">${e.status}</span>
-          <span class="activity-detail">${detail}</span>
-          <span class="activity-desc">${esc(e.description)}</span>
-        </div>
-      `;
-    }).join("");
+    _activityCache = events;
+    renderActivityEvents(events, el);
   } catch (err) {
-    el.innerHTML = '<p class="status-error">Error: ' + esc(err.message) + '</p>';
+    if (!_activityCache) {
+      el.innerHTML = '<p class="status-error">Error loading activity. <button class="btn-ghost-small" onclick="loadActivity()">Retry</button></p>';
+    }
   }
+}
+
+function renderActivityEvents(events, el) {
+  if (!events || events.length === 0) {
+    el.innerHTML = '<p class="empty-state">No activity yet. Delegate a task to get started.</p>';
+    return;
+  }
+  el.innerHTML = events.map(e => {
+    const statusClass = e.status === "pending" ? "status-pending" : e.status === "completed" ? "status-completed" : "status-rated";
+    let detail = "";
+    if (e.status === "pending") {
+      detail = `<strong>${esc(e.requester_name)}</strong> delegated to <strong>${esc(e.provider_name)}</strong>`;
+    } else if (e.status === "completed") {
+      detail = `<strong>${esc(e.provider_name)}</strong> completed task for <strong>${esc(e.requester_name)}</strong>`;
+    } else if (e.status === "rated") {
+      let trustDelta = "";
+      if (e.trust_before != null && e.trust_after != null) {
+        const bPct = Math.round(e.trust_before * 100);
+        const aPct = Math.round(e.trust_after * 100);
+        const arrowCls = aPct >= bPct ? "arrow-up" : "arrow-down";
+        const arrowChar = aPct >= bPct ? "\u2191" : "\u2193";
+        trustDelta = ` &mdash; <span class="${arrowCls}">${bPct}%${arrowChar}${aPct}%</span>`;
+      }
+      detail = `<strong>${esc(e.requester_name)}</strong> rated <strong>${esc(e.provider_name)}</strong> ${Math.round(e.rating * 10)}/10${trustDelta}`;
+    }
+    const ts = e.updated_at || e.created_at;
+    const timeStr = ts ? timeAgo(ts) : "";
+    return `
+      <div class="activity-row">
+        <span class="activity-time">${timeStr}</span>
+        <span class="task-status ${statusClass}">${e.status}</span>
+        <span class="activity-detail">${detail}</span>
+        <span class="activity-desc">${esc(e.description)}</span>
+      </div>`;
+  }).join("");
 }
 
 // ============================================================

@@ -84,12 +84,31 @@
       <aside class="sidebar">
         <div class="trust-model-box">
           <h3>How Trust Works</h3>
-          <div class="trust-model-item"><span class="trust-label">TSR 35%</span> <span class="trust-desc">Task Success Rate</span></div>
-          <div class="trust-model-item"><span class="trust-label">WFS 40%</span> <span class="trust-desc">Weighted Feedback Score</span></div>
-          <div class="trust-model-item"><span class="trust-label">RH 15%</span> <span class="trust-desc">Reliability History</span></div>
-          <div class="trust-model-item"><span class="trust-label">SS 10%</span> <span class="trust-desc">Specialization Score</span></div>
-          <div class="trust-formula">0.35×TSR + 0.40×WFS + 0.15×RH + 0.10×SS</div>
-          <p class="trust-note">New agents start at 20%. Gate blocks below 30%. Capped at 40% until 3 tasks done.</p>
+          <div class="trust-model-item">
+            <span class="trust-label">TSR</span>
+            <div class="trust-weight-bar-track"><div class="trust-weight-bar-fill" style="width:35%"></div></div>
+            <span class="trust-weight-pct">35%</span>
+          </div>
+          <p class="trust-desc">Task Success Rate</p>
+          <div class="trust-model-item">
+            <span class="trust-label">WFS</span>
+            <div class="trust-weight-bar-track"><div class="trust-weight-bar-fill" style="width:40%"></div></div>
+            <span class="trust-weight-pct">40%</span>
+          </div>
+          <p class="trust-desc">Weighted Feedback Score</p>
+          <div class="trust-model-item">
+            <span class="trust-label">RH</span>
+            <div class="trust-weight-bar-track"><div class="trust-weight-bar-fill" style="width:15%"></div></div>
+            <span class="trust-weight-pct">15%</span>
+          </div>
+          <p class="trust-desc">Reliability History</p>
+          <div class="trust-model-item">
+            <span class="trust-label">SS</span>
+            <div class="trust-weight-bar-track"><div class="trust-weight-bar-fill" style="width:10%"></div></div>
+            <span class="trust-weight-pct">10%</span>
+          </div>
+          <p class="trust-desc">Specialization Score</p>
+          <p class="trust-note">New agents start at 20%. Blocked below 30%. Capped at 40% until 3 real tasks completed.</p>
         </div>
         <div class="leaderboard">
           <h2>Top 5</h2>
