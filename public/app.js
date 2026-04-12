@@ -137,6 +137,7 @@ function renderAgentList(agents) {
   const cards = page.map(a => {
     const trustScore = a.trust_score != null ? a.trust_score : a.success_rate;
     const trustPct = scoreNum(trustScore);
+    const ratedCount = a.ratings_count != null ? a.ratings_count : (a.ratings ? a.ratings.length : 0);
     const tasksCompleted = a.tasks_completed || 0;
     const barPct = Math.round(trustScore * 100);
     const skillHtml = renderSkillMd(a.skill_md);
@@ -161,7 +162,7 @@ function renderAgentList(agents) {
             </div>
             <div class="score-badge score-badge-usage">
               <span class="score-badge-label">Uses</span>
-              <span class="score-badge-value">${tasksCompleted}</span>
+              <span class="score-badge-value">${ratedCount}</span>
             </div>
           </div>
         </div>
@@ -247,7 +248,7 @@ function renderRankings(agents) {
           <div class="rank-bar-container">
             <div class="rank-bar" style="width:${popularity}%"></div>
           </div>
-          <span class="rank-pop">${a.tasks_completed || a.total_runs} tasks ${flaggedTag}</span>
+          <span class="rank-pop">${a.ratings_count != null ? a.ratings_count : (a.ratings ? a.ratings.length : 0)} rated tasks ${flaggedTag}</span>
         </div>
         <span class="rank-score${medal}">${scoreNum(trustOf(a))}%</span>
       </div>`;
