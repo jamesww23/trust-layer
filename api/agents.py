@@ -18,6 +18,29 @@ class handler(BaseHTTPRequestHandler):
             seed_store(store)
 
             agents = store.list_all()
+
+            # Auto-backfill: if any agent has empty ratings but rated tasks exist,
+            # reconstruct from task history (one-time self-healing migration)
+            needs_backfill = [a for a in agents if len(a.ratings) == 0 and a.tasks_completed > 0]
+            if needs_backfill:
+                all_tasks = store._all_tasks()
+                rated_tasks = [t for t in all_tasks if t.status == "rated" and t.rating is not None]
+                agent_map = {a.agent_id: a for a in agents}
+                provider_ratings = {}
+                for task in sorted(rated_tasks, key=lambda t: t.rated_at or t.updated_at or ""):
+                    pid = task.provider_id
+                    if pid not in provider_ratings:
+                        provider_ratings[pid] = []
+                    requester = agent_map.get(task.requester_id)
+                    weight = requester.trust_score if requester else 0.2
+                    provider_ratings[pid].append((task.rating, weight))
+                for agent in needs_backfill:
+                    pairs = provider_ratings.get(agent.agent_id, [])[-20:]
+                    if pairs:
+                        agent.ratings = [r for r, _ in pairs]
+                        agent.rating_weights = [w for _, w in pairs]
+                        store.register(agent)
+
             agents.sort(key=lambda a: -a.trust_score)
 
             self.send_response(200)
