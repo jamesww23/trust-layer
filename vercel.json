@@ -10,6 +10,20 @@
       "use": "@vercel/static"
     }
   ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, s-maxage=120, stale-while-revalidate=300" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+      ]
+    }
+  ],
   "routes": [
     { "src": "/api/register-agent", "dest": "/api/register_agent.py" },
     { "src": "/api/agents", "dest": "/api/agents.py" },
