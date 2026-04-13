@@ -151,29 +151,13 @@ class RedisStore(AgentStore):
     def __init__(self):
         import redis
 
-        # Railway Redis: standard REDIS_URL
-        url = os.environ.get("REDIS_URL")
-
-        if not url:
-            # Fallback: Upstash env vars (backward compat)
-            upstash_url = (
-                os.environ.get("UPSTASH_REDIS_REST_URL")
-                or os.environ.get("KV_REST_API_URL")
-            )
-            upstash_token = (
-                os.environ.get("UPSTASH_REDIS_REST_TOKEN")
-                or os.environ.get("KV_REST_API_TOKEN")
-            )
-            if upstash_url and upstash_token:
-                # Convert Upstash REST URL to redis:// for standard client
-                # Upstash also supports standard Redis protocol
-                host = upstash_url.replace("https://", "").replace("http://", "")
-                url = f"rediss://default:{upstash_token}@{host}:6379"
+        # Railway Redis: RAILWAY_REDIS_URL takes priority, then REDIS_URL
+        url = os.environ.get("RAILWAY_REDIS_URL") or os.environ.get("REDIS_URL")
 
         if not url:
             raise EnvironmentError(
-                "Redis credentials not found. Set REDIS_URL "
-                "(or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN)."
+                "Redis credentials not found. Set REDIS_URL env var "
+                "(e.g. redis://default:password@host:port)."
             )
 
         # Railway public Redis doesn't use SSL on the proxy port
