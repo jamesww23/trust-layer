@@ -176,7 +176,13 @@ class RedisStore(AgentStore):
                 "(or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN)."
             )
 
-        self._redis = redis.from_url(url, decode_responses=True)
+        # Railway public Redis doesn't use SSL on the proxy port
+        self._redis = redis.from_url(
+            url,
+            decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=10,
+        )
 
     def _key(self, agent_id: str) -> str:
         return f"{self.KEY_PREFIX}{agent_id}"
