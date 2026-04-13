@@ -130,75 +130,94 @@ class MemoryStore(AgentStore):
 
 
 class RedisStore(AgentStore):
-    """Upstash Redis store for Vercel KV deployment.
+    """Redis store for deployment (Railway Redis or any standard Redis).
 
     Uses an agent index (Redis set) to avoid expensive .keys() scans.
     The index 'idx:agents' holds all agent IDs; 'idx:tasks' holds all task IDs.
-    This reduces list_all() from O(keyspace) to O(agents).
+
+    Connects via REDIS_URL env var (standard redis:// connection string).
+    Falls back to Upstash env vars for backward compatibility.
     """
 
     KEY_PREFIX = "agent:"
+    TASK_PREFIX = "task:"
     AGENT_INDEX = "idx:agents"
     TASK_INDEX = "idx:tasks"
 
-    # Module-level seeded flag — survives across calls in the same
-    # Vercel serverless instance (warm start), preventing redundant
-    # seed checks on every request.
+    # Survives across calls in the same Vercel serverless instance
+    # (warm start), preventing redundant seed checks on every request.
     _seeded = False
 
     def __init__(self):
-        from upstash_redis import Redis
+        import redis
 
-        url = os.environ.get("UPSTASH_REDIS_REST_URL") or os.environ.get("KV_REST_API_URL")
-        token = os.environ.get("UPSTASH_REDIS_REST_TOKEN") or os.environ.get("KV_REST_API_TOKEN")
+        # Railway Redis: standard REDIS_URL
+        url = os.environ.get("REDIS_URL")
 
-        if not url or not token:
+        if not url:
+            # Fallback: Upstash env vars (backward compat)
+            upstash_url = (
+                os.environ.get("UPSTASH_REDIS_REST_URL")
+                or os.environ.get("KV_REST_API_URL")
+            )
+            upstash_token = (
+                os.environ.get("UPSTASH_REDIS_REST_TOKEN")
+                or os.environ.get("KV_REST_API_TOKEN")
+            )
+            if upstash_url and upstash_token:
+                # Convert Upstash REST URL to redis:// for standard client
+                # Upstash also supports standard Redis protocol
+                host = upstash_url.replace("https://", "").replace("http://", "")
+                url = f"rediss://default:{upstash_token}@{host}:6379"
+
+        if not url:
             raise EnvironmentError(
-                "Redis credentials not found. Set UPSTASH_REDIS_REST_URL and "
-                "UPSTASH_REDIS_REST_TOKEN (or KV_REST_API_URL and KV_REST_API_TOKEN)."
+                "Redis credentials not found. Set REDIS_URL "
+                "(or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN)."
             )
 
-        self._redis = Redis(url=url, token=token)
+        self._redis = redis.from_url(url, decode_responses=True)
 
     def _key(self, agent_id: str) -> str:
         return f"{self.KEY_PREFIX}{agent_id}"
+
+    def _task_key(self, task_id: str) -> str:
+        return f"{self.TASK_PREFIX}{task_id}"
 
     def register(self, agent: Agent) -> None:
         existing = self._redis.get(self._key(agent.agent_id))
         if existing is not None:
             raise ValueError(f"Agent '{agent.agent_id}' already registered")
-        self._redis.set(self._key(agent.agent_id), json.dumps(agent.to_dict()))
-        self._redis.sadd(self.AGENT_INDEX, agent.agent_id)
+        pipe = self._redis.pipeline()
+        pipe.set(self._key(agent.agent_id), json.dumps(agent.to_dict()))
+        pipe.sadd(self.AGENT_INDEX, agent.agent_id)
+        pipe.execute()
 
     def get(self, agent_id: str) -> Agent:
         raw = self._redis.get(self._key(agent_id))
         if raw is None:
             return None
-        data = raw if isinstance(raw, dict) else json.loads(raw)
+        data = json.loads(raw)
         return Agent.from_dict(data)
 
     def upsert(self, agent: Agent) -> None:
         agent.updated_at = datetime.now(timezone.utc).isoformat()
-        self._redis.set(self._key(agent.agent_id), json.dumps(agent.to_dict()))
-        self._redis.sadd(self.AGENT_INDEX, agent.agent_id)
+        pipe = self._redis.pipeline()
+        pipe.set(self._key(agent.agent_id), json.dumps(agent.to_dict()))
+        pipe.sadd(self.AGENT_INDEX, agent.agent_id)
+        pipe.execute()
 
     def list_all(self) -> list:
-        # Use index set instead of expensive .keys() scan
         agent_ids = self._redis.smembers(self.AGENT_INDEX)
         if not agent_ids:
-            # Fallback: rebuild index from keys (one-time migration)
-            keys = self._redis.keys(f"{self.KEY_PREFIX}*")
-            agent_ids = []
-            for key in keys:
-                aid = key.replace(self.KEY_PREFIX, "") if isinstance(key, str) else key
-                agent_ids.append(aid)
-                self._redis.sadd(self.AGENT_INDEX, aid)
+            return []
+        # Batch fetch all agents in one round-trip
+        keys = [self._key(aid) for aid in agent_ids]
+        raw_list = self._redis.mget(keys)
         agents = []
-        for aid in agent_ids:
-            raw = self._redis.get(self._key(aid))
+        for raw in raw_list:
             if raw is not None:
-                data = raw if isinstance(raw, dict) else json.loads(raw)
-                agents.append(Agent.from_dict(data))
+                agents.append(Agent.from_dict(json.loads(raw)))
         return agents
 
     def discover(self, keyword: str, min_trust: float = None) -> list:
@@ -220,58 +239,51 @@ class RedisStore(AgentStore):
 
     def reset(self) -> None:
         # Delete agents
-        agent_ids = self._redis.smembers(self.AGENT_INDEX) or []
-        for aid in agent_ids:
-            self._redis.delete(self._key(aid))
-        self._redis.delete(self.AGENT_INDEX)
+        agent_ids = self._redis.smembers(self.AGENT_INDEX) or set()
+        if agent_ids:
+            keys = [self._key(aid) for aid in agent_ids]
+            self._redis.delete(*keys, self.AGENT_INDEX)
+        else:
+            self._redis.delete(self.AGENT_INDEX)
         # Delete tasks
-        task_ids = self._redis.smembers(self.TASK_INDEX) or []
-        for tid in task_ids:
-            self._redis.delete(self._task_key(tid))
-        self._redis.delete(self.TASK_INDEX)
+        task_ids = self._redis.smembers(self.TASK_INDEX) or set()
+        if task_ids:
+            keys = [self._task_key(tid) for tid in task_ids]
+            self._redis.delete(*keys, self.TASK_INDEX)
+        else:
+            self._redis.delete(self.TASK_INDEX)
         RedisStore._seeded = False
 
     def is_empty(self) -> bool:
-        # Check index set — 1 command instead of .keys() scan
         count = self._redis.scard(self.AGENT_INDEX)
         return count == 0
 
     # --- Task methods ---
 
-    TASK_PREFIX = "task:"
-
-    def _task_key(self, task_id: str) -> str:
-        return f"{self.TASK_PREFIX}{task_id}"
-
     def save_task(self, task: Task) -> None:
         task.updated_at = datetime.now(timezone.utc).isoformat()
-        self._redis.set(self._task_key(task.task_id), json.dumps(task.to_dict()))
-        self._redis.sadd(self.TASK_INDEX, task.task_id)
+        pipe = self._redis.pipeline()
+        pipe.set(self._task_key(task.task_id), json.dumps(task.to_dict()))
+        pipe.sadd(self.TASK_INDEX, task.task_id)
+        pipe.execute()
 
     def get_task(self, task_id: str) -> Task:
         raw = self._redis.get(self._task_key(task_id))
         if raw is None:
             return None
-        data = raw if isinstance(raw, dict) else json.loads(raw)
-        return Task.from_dict(data)
+        return Task.from_dict(json.loads(raw))
 
     def _all_tasks(self) -> list:
-        """Load all tasks using the index set (no .keys() scan)."""
+        """Load all tasks using the index set + batch mget."""
         task_ids = self._redis.smembers(self.TASK_INDEX)
         if not task_ids:
-            # Fallback: rebuild index from keys (one-time migration)
-            keys = self._redis.keys(f"{self.TASK_PREFIX}*")
-            task_ids = []
-            for key in keys:
-                tid = key.replace(self.TASK_PREFIX, "") if isinstance(key, str) else key
-                task_ids.append(tid)
-                self._redis.sadd(self.TASK_INDEX, tid)
+            return []
+        keys = [self._task_key(tid) for tid in task_ids]
+        raw_list = self._redis.mget(keys)
         tasks = []
-        for tid in task_ids:
-            raw = self._redis.get(self._task_key(tid))
+        for raw in raw_list:
             if raw is not None:
-                data = raw if isinstance(raw, dict) else json.loads(raw)
-                tasks.append(Task.from_dict(data))
+                tasks.append(Task.from_dict(json.loads(raw)))
         return tasks
 
     def get_tasks_for_agent(self, agent_id: str, status: str = None) -> list:

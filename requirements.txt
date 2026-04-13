@@ -1,4 +1,4 @@
-upstash-redis
+redis
 pytest
 numpy
 pandas
