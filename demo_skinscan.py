@@ -372,6 +372,7 @@ def run_task_cycle(cycle_num, model, sample, requester_id, provider_id):
         "score": score,
         "task_id": task_id,
         "rated_by": requester_id,
+        "fulfilled": True,
     })
     show("Feedback submitted", {
         "score": score,
@@ -452,6 +453,7 @@ def main():
         r = api("POST", "/api/submit-feedback", {
             "agent_id": SKINSCAN_AGENT["agent_id"],
             "score": score,
+            "fulfilled": True,
         })
         trust = r.get("trust_after", 0)
         gate = "PASS" if trust >= 0.3 else "BLOCKED"

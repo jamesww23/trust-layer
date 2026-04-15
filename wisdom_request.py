@@ -268,6 +268,7 @@ def main():
         "score": score,
         "task_id": task_id,
         "rated_by": AGENT_ID,
+        "fulfilled": True,
     })
 
     if not result.get("_error"):

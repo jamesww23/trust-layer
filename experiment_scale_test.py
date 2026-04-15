@@ -190,6 +190,7 @@ def phase2_stress(agents, rounds):
                         "score": score,
                         "task_id": task_id,
                         "rated_by": ORCHESTRATOR_ID,
+                        "fulfilled": True,
                     })
                     total_ms = ms + ms2 + ms3
                     if r3.get("_error"):
@@ -248,6 +249,7 @@ def phase3_convergence(agents, rounds):
                 "agent_id": ag["id"],
                 "score": score,
                 "rated_by": ORCHESTRATOR_ID,
+                "fulfilled": True,
             })
             time.sleep(0.03)
 
@@ -325,8 +327,8 @@ def phase4_resilience(agents):
 
     # Both attack agents submit mutual max ratings 3 times
     for _ in range(3):
-        api("POST", "/api/submit-feedback", {"agent_id": attacker_a, "score": 1.0, "rated_by": attacker_b})
-        api("POST", "/api/submit-feedback", {"agent_id": attacker_b, "score": 1.0, "rated_by": attacker_a})
+        api("POST", "/api/submit-feedback", {"agent_id": attacker_a, "score": 1.0, "rated_by": attacker_b, "fulfilled": True})
+        api("POST", "/api/submit-feedback", {"agent_id": attacker_b, "score": 1.0, "rated_by": attacker_a, "fulfilled": True})
         time.sleep(0.1)
 
     r, _ = api("GET", "/api/agents")
@@ -390,7 +392,7 @@ def run_experiment(rounds):
         # Always seed — new agents always start at 20%
         for _ in range(3):
             api("POST", "/api/submit-feedback", {
-                "agent_id": ag["id"], "score": 0.8, "rated_by": ORCHESTRATOR_ID,
+                "agent_id": ag["id"], "score": 0.8, "rated_by": ORCHESTRATOR_ID, "fulfilled": True,
             })
         seeded += 1
         time.sleep(0.05)

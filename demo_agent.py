@@ -151,6 +151,7 @@ def main():
         r = api("POST", "/api/submit-feedback", {
             "agent_id": databot_id,
             "score": score,
+            "fulfilled": True,
         })
         trust = r.get("trust_after", 0)
         print(f"  Rating {i}: score={score} → trust={trust*100:.1f}%")
@@ -222,6 +223,7 @@ def main():
         "score": 0.9,  # 9/10
         "task_id": task_id,
         "rated_by": AGENT_A["agent_id"],
+        "fulfilled": True,
     })
     show("Rating submitted", {
         "score": "9/10",
