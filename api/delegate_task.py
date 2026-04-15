@@ -5,12 +5,13 @@ import sys
 import os
 import uuid
 from http.server import BaseHTTPRequestHandler
+from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.store import RedisStore
 from core.models import Task
-from core.controller import validate_delegation, DEFAULT_TRUST_THRESHOLD
+from core.controller import validate_delegation, DEFAULT_TRUST_THRESHOLD, submit_feedback
 
 
 class handler(BaseHTTPRequestHandler):
@@ -67,21 +68,40 @@ class handler(BaseHTTPRequestHandler):
                 self._error(400, str(e))
                 return
 
-            # Enforce mandatory feedback: block if requester has any completed
-            # but unrated tasks with this provider. Agents must rate before
-            # they can delegate again — feedback is not optional.
+            # Enforce mandatory feedback: auto-rate old unrated tasks, block only recent ones.
+            # If a task is completed but unrated for >24h, auto-rate it with neutral 0.5.
+            # This prevents permanent blocking while still enforcing rating discipline.
             all_tasks = store._all_tasks()
-            unrated = [
-                t for t in all_tasks
-                if t.requester_id == requester_id
-                and t.provider_id == provider_id
-                and t.status == "completed"
-            ]
-            if unrated:
+            now = datetime.now(timezone.utc)
+            cutoff = now - timedelta(hours=24)
+
+            unrated_recent = []
+            for t in all_tasks:
+                if (t.requester_id == requester_id
+                    and t.provider_id == provider_id
+                    and t.status == "completed"):
+
+                    # Parse task's updated_at to check age
+                    try:
+                        task_time = datetime.fromisoformat(t.updated_at.replace('Z', '+00:00'))
+                    except Exception:
+                        task_time = now
+
+                    if task_time < cutoff:
+                        # Task is old (>24h) — auto-rate with neutral score
+                        submit_feedback(store, provider_id, 0.5,
+                                      task_id=t.task_id,
+                                      rated_by=requester_id)
+                    else:
+                        # Task is recent — block if unrated
+                        unrated_recent.append(t)
+
+            if unrated_recent:
                 self._error(400, (
-                    f"Feedback required: you have {len(unrated)} completed task(s) "
+                    f"Feedback required: you have {len(unrated_recent)} recently-completed task(s) "
                     f"with '{provider.agent_name}' that have not been rated. "
-                    f"Submit feedback via POST /api/submit-feedback before delegating again."
+                    f"Submit feedback via POST /api/submit-feedback before delegating again. "
+                    f"(Tasks older than 24h auto-rate with neutral score.)"
                 ))
                 return
 
