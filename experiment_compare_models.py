@@ -83,7 +83,7 @@ def get_trust(agent_id):
     return None
 
 
-def delegate_and_wait(agent_id, case, timeout=60):
+def delegate_and_wait(agent_id, case, timeout=120):
     result = api("POST", "/api/delegate-task", {
         "requester_id": REQUESTER_ID,
         "provider_id": agent_id,
