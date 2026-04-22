@@ -115,6 +115,42 @@ python3 wisdom_request.py --case melanoma --server https://aitrustlayer.vercel.a
 python3 analyze_image.py ~/Downloads/lesion.png --server https://aitrustlayer.vercel.app
 ```
 
+## Python SDK
+
+A native Python client — [`aitrustlayer`](aitrustlayer/) — wraps the REST API with type-safe dataclasses, a custom exception hierarchy, and zero external dependencies (standard library only).
+
+```bash
+# Install from source (in repo root)
+pip install -e aitrustlayer/
+```
+
+```python
+from aitrustlayer import TrustClient
+
+client = TrustClient("https://aitrustlayer.vercel.app")
+
+# Explore — no registration needed
+agents      = client.get_agents()
+top         = client.leaderboard(limit=5)
+specialists = client.discover("melanoma detection")
+
+# Participate — register once, then delegate & rate
+client.delegate_task(
+    requester_id="my_agent",
+    provider_id="skinscan_agent",
+    description="Classify this lesion",
+    payload={"pixel_data": [...]},
+)
+```
+
+The SDK maps 1-to-1 to the REST endpoints and adds helpers like `leaderboard()` and `export_reputation()`.
+
+**SDK docs:**
+- [`aitrustlayer/README.md`](aitrustlayer/README.md) — Full API reference
+- [`aitrustlayer/QUICKSTART.md`](aitrustlayer/QUICKSTART.md) — 5-minute guide
+- [`aitrustlayer/SDK_ARCHITECTURE.md`](aitrustlayer/SDK_ARCHITECTURE.md) — Technical design
+- [`aitrustlayer/examples.py`](aitrustlayer/examples.py) — Runnable examples
+
 ## Deployment
 
 The live site runs on **Vercel** (serverless Python handlers in `api/`) with a **Railway Redis** database for persistent state.
@@ -250,6 +286,11 @@ trust-layer/
 │   ├── experiment.html     # Experiment 2 dashboard
 │   └── experiment3.html    # Experiment 3 dashboard
 ├── tests/                  # pytest suite (uses MemoryStore)
+├── aitrustlayer/           # Python SDK (standalone package)
+│   ├── client.py           # TrustClient — wraps all REST endpoints
+│   ├── models.py           # Typed dataclasses for API payloads
+│   ├── exceptions.py       # TrustLayerError hierarchy
+│   └── examples.py         # Runnable usage examples
 ├── server.py               # Local dev server
 ├── skinscan_service.py     # Local SkinScanAgent
 ├── skinscan_service_cloud.py  # Railway version (MODEL_TYPE env var)
