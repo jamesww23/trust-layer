@@ -70,19 +70,43 @@ def beat(seconds: float = 0.6) -> None:
 
 # ----- minimal HTTP helper (no SDK install needed for the demo) -----------
 
+# Generous per-request timeout: server.py's MemoryStore is single-threaded,
+# and Docker healthchecks can briefly contend with our requests.  30 s is
+# well above any realistic real workload.
+REQUEST_TIMEOUT = 30
+# One automatic retry on transient socket errors (timeouts, connection
+# resets) keeps the demo recording-friendly without hiding real failures.
+TRANSIENT_RETRIES = 1
+
+
 def _request(method: str, url: str, body: dict | None = None) -> dict:
     data = json.dumps(body).encode() if body is not None else None
     headers = {"Content-Type": "application/json"} if body is not None else {}
-    req = urllib.request.Request(url, data=data, headers=headers, method=method)
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return json.loads(resp.read().decode())
-    except urllib.error.HTTPError as e:
+
+    last_error: Exception | None = None
+    for attempt in range(TRANSIENT_RETRIES + 1):
+        req = urllib.request.Request(url, data=data, headers=headers, method=method)
         try:
-            err = json.loads(e.read().decode())
-        except Exception:
-            err = {"error": str(e)}
-        raise RuntimeError(f"HTTP {e.code}: {err.get('error', err)}") from None
+            with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+                return json.loads(resp.read().decode())
+        except urllib.error.HTTPError as e:
+            # Real server-side error — surface immediately, don't retry.
+            try:
+                err = json.loads(e.read().decode())
+            except Exception:
+                err = {"error": str(e)}
+            raise RuntimeError(f"HTTP {e.code}: {err.get('error', err)}") from None
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+            # Transient network issue — retry once before giving up.
+            last_error = e
+            if attempt < TRANSIENT_RETRIES:
+                time.sleep(0.5)
+                continue
+            raise RuntimeError(
+                f"{method} {url} failed after {attempt + 1} attempt(s): {e}"
+            ) from None
+    # Unreachable, but keeps type-checkers happy.
+    raise RuntimeError(f"{method} {url} failed: {last_error}")
 
 
 def get_agent(base: str, agent_id: str) -> dict | None:
