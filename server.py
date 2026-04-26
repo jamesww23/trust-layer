@@ -41,6 +41,10 @@ class DevHandler(SimpleHTTPRequestHandler):
             self._api_tasks(params)
         elif parsed.path == "/api/activity":
             self._api_activity()
+        elif parsed.path == "/api/export":
+            params = parse_qs(parsed.query)
+            agent_id = params.get("agent_id", [""])[0]
+            self._api_export(agent_id)
         else:
             super().do_GET()
 
@@ -65,6 +69,8 @@ class DevHandler(SimpleHTTPRequestHandler):
             self._api_submit_result(body)
         elif parsed.path == "/api/vouch":
             self._api_vouch(body)
+        elif parsed.path == "/api/import":
+            self._api_import(body)
         else:
             self._json_error(404, "Not found")
 
@@ -238,6 +244,33 @@ class DevHandler(SimpleHTTPRequestHandler):
             "task": task.to_dict(),
             "message": f"Result submitted. The requester ({task.requester_id}) can now rate your work at POST /api/submit-feedback",
         })
+
+    def _api_export(self, agent_id):
+        from core.portability import export_agent
+        if not agent_id:
+            self._json_error(400, "agent_id query parameter is required"); return
+        host = self.headers.get("Host", "")
+        source_url = f"http://{host}" if host else ""
+        try:
+            blob = export_agent(store, agent_id, source_url=source_url)
+        except ValueError as e:
+            self._json_error(404, str(e)); return
+        self._json_response(blob)
+
+    def _api_import(self, body):
+        from core.portability import import_agent
+        blob = body.get("blob")
+        if blob is None:
+            self._json_error(400, "Field 'blob' is required (the export payload)"); return
+        overwrite = bool(body.get("overwrite", False))
+        apply_decay = bool(body.get("apply_decay", True))
+        try:
+            result = import_agent(store, blob, overwrite=overwrite, apply_decay=apply_decay)
+        except ValueError as e:
+            msg = str(e)
+            status = 409 if "already exists" in msg else 400
+            self._json_error(status, msg); return
+        self._json_response(result)
 
     def _api_activity(self):
         """Return recent tasks sorted by most recently updated, enriched with agent names."""

@@ -39,6 +39,8 @@
     { "src": "/api/migrate-ratings", "dest": "/api/migrate_ratings.py" },
     { "src": "/api/experiment2", "dest": "/api/experiment2.py" },
     { "src": "/api/experiment3", "dest": "/api/experiment3.py" },
+    { "src": "/api/export", "dest": "/api/export_reputation.py" },
+    { "src": "/api/import", "dest": "/api/import_reputation.py" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]
 }
