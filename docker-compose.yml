@@ -1,0 +1,46 @@
+# Trust-layer federation demo — two independent reputation nodes.
+#
+# Each service is a standalone trust-layer instance with its own
+# in-memory store and its own seeded agents.  Together they let you
+# demonstrate the cross-instance migration story:
+#
+#   1) Bootstrap an agent's trust on node A
+#   2) Export its signed reputation blob from node A
+#   3) Import the blob into node B — agent appears with history preserved
+#
+# Quick start:
+#   docker compose up --build
+#   open http://localhost:4001     # node A UI
+#   open http://localhost:4002     # node B UI
+#   python3 demo_portability.py    # the scripted end-to-end flow
+
+services:
+  node-a:
+    build:
+      context: .
+      dockerfile: docker/trustlayer/Dockerfile
+    container_name: trustlayer-node-a
+    ports:
+      - "4001:4000"
+    environment:
+      - NODE_NAME=node-a
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request as u; u.urlopen('http://localhost:4000/api/agents', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+
+  node-b:
+    build:
+      context: .
+      dockerfile: docker/trustlayer/Dockerfile
+    container_name: trustlayer-node-b
+    ports:
+      - "4002:4000"
+    environment:
+      - NODE_NAME=node-b
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request as u; u.urlopen('http://localhost:4000/api/agents', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s

@@ -115,6 +115,48 @@ python3 wisdom_request.py --case melanoma --server https://aitrustlayer.vercel.a
 python3 analyze_image.py ~/Downloads/lesion.png --server https://aitrustlayer.vercel.app
 ```
 
+## Federation: portable reputation across instances
+
+The trust layer ships with **export / import endpoints** so an agent's
+full reputation state can be moved between independent deployments —
+making the "portable reputation" claim above a runnable feature, not
+just a slide.
+
+```bash
+# 1. Export from Node A as a signed JSON blob
+curl 'https://aitrustlayer.vercel.app/api/export?agent_id=skinscan_agent' \
+  > skinscan_blob.json
+
+# 2. Import the blob into a different trust-layer instance
+curl -X POST http://other-trust-layer.example.com/api/import \
+  -H 'Content-Type: application/json' \
+  -d "{\"blob\": $(cat skinscan_blob.json)}"
+```
+
+What the import enforces:
+- **Tamper detection** — every export carries a sha256 signature over
+  its canonical JSON; modified blobs are rejected
+- **Anti-poisoning decay** — imported rating weights are halved by default
+  so the imported trust starts capped and rebuilds via local activity,
+  preventing a permissive instance from "laundering" trust onto a strict one
+- **Format versioning** — incompatible blobs are rejected with a clear error
+
+### Run two nodes locally with Docker
+
+```bash
+# Boots two independent trust-layer nodes on ports 4001 + 4002
+docker compose up --build
+
+# Run the scripted demo (registers, bootstraps trust, exports, imports)
+python3 demo_portability.py
+```
+
+The demo prints a side-by-side comparison of the agent's state on each
+node — proof that identity, ratings, and history move across deployments.
+
+See [`core/portability.py`](core/portability.py) for the full schema and
+[`demo_portability.py`](demo_portability.py) for the end-to-end script.
+
 ## Python SDK
 
 A native Python client — [`aitrustlayer`](aitrustlayer/) — wraps the REST API with type-safe dataclasses, a custom exception hierarchy, and zero external dependencies (standard library only).
@@ -185,6 +227,8 @@ All endpoints live under `/api/`. All responses are JSON with `Access-Control-Al
 | `POST` | `/api/vouch` | Trusted agent vouches for a newer one |
 | `GET`  | `/api/activity` | Full audit log of task events |
 | `POST` | `/api/run-simulation` | Run N synthetic rounds: `{ rounds, trust_threshold }` |
+| `GET`  | `/api/export?agent_id=...` | Export a signed, portable reputation blob |
+| `POST` | `/api/import` | Import a reputation blob from another instance: `{ blob, overwrite?, apply_decay? }` |
 
 ### Example — register + delegate + rate
 
@@ -275,7 +319,11 @@ trust-layer/
 │   ├── store.py            # MemoryStore + RedisStore
 │   ├── scoring.py          # Trust formula
 │   ├── controller.py       # Trust gate, delegation, vouch, simulation
+│   ├── portability.py      # Cross-instance export / import + signing
 │   └── fixtures.py         # Seed data loader
+├── docker/trustlayer/      # Dockerfile for a self-contained trust-layer node
+├── docker-compose.yml      # Two-node federation demo
+├── demo_portability.py     # End-to-end script: export A → import B
 ├── data/
 │   ├── seed_agents.json    # 13 pre-registered agents
 │   ├── seed_tasks.json     # Historical tasks to bootstrap trust scores

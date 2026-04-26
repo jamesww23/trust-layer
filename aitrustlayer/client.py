@@ -130,11 +130,14 @@ class TrustClient:
         Raises:
             NotFoundError: If agent is not found
         """
-        response = self._request("GET", f"/api/agents?agent_id={agent_id}")
+        # Some deployments return the full agent list and ignore agent_id; always pick by id.
+        params = urlencode({"agent_id": agent_id})
+        response = self._request("GET", f"/api/agents?{params}")
         agents = response.get("agents", [])
-        if not agents:
-            raise NotFoundError(f"Agent '{agent_id}' not found")
-        return Agent.from_dict(agents[0])
+        for raw in agents:
+            if raw.get("agent_id") == agent_id:
+                return Agent.from_dict(raw)
+        raise NotFoundError(f"Agent '{agent_id}' not found")
 
     def get_agents(self) -> List[Agent]:
         """
@@ -377,3 +380,65 @@ class TrustClient:
             "created_at": agent.created_at,
             "updated_at": agent.updated_at,
         }
+
+    # ------------------------------------------------------------------
+    # Portable reputation: cross-instance export / import
+    # ------------------------------------------------------------------
+
+    def export_blob(self, agent_id: str) -> Dict[str, Any]:
+        """Fetch a signed, portable reputation blob from the server.
+
+        Calls ``GET /api/export?agent_id=...``. The returned dict is a
+        self-describing JSON payload (format_version, agent state, rated
+        task history, sha256 signature) that another trust-layer instance
+        can ingest via :py:meth:`import_blob`.
+
+        Use this for cross-instance migration; for a client-side metrics
+        summary, use :py:meth:`export_reputation` instead.
+
+        Args:
+            agent_id: Agent to export
+
+        Returns:
+            The signed export blob (suitable for ``json.dumps``)
+
+        Raises:
+            NotFoundError: If the agent does not exist on this instance
+        """
+        params = urlencode({"agent_id": agent_id})
+        return self._request("GET", f"/api/export?{params}")
+
+    def import_blob(
+        self,
+        blob: Dict[str, Any],
+        overwrite: bool = False,
+        apply_decay: bool = True,
+    ) -> Dict[str, Any]:
+        """Import a reputation blob produced by another trust-layer instance.
+
+        Calls ``POST /api/import``. The server verifies the blob's
+        signature, rejects malformed or tampered payloads, and (by default)
+        halves imported rating weights so the agent's trust score starts
+        capped and rebuilds via local activity.
+
+        Args:
+            blob:        the export dict returned by :py:meth:`export_blob`
+                         (or fetched from another instance's /api/export)
+            overwrite:   if True, replace an existing agent with the same id;
+                         if False (default), duplicates raise ClientError
+            apply_decay: if True (default), halve imported rating weights
+                         to prevent reputation poisoning across instances
+
+        Returns:
+            Server response describing the imported agent
+            (agent_id, applied_trust, ratings_imported, source_url, ...)
+
+        Raises:
+            ValidationError: blob is malformed or has a bad signature
+            ClientError:     agent already exists and ``overwrite`` is False
+        """
+        return self._request("POST", "/api/import", {
+            "blob": blob,
+            "overwrite": overwrite,
+            "apply_decay": apply_decay,
+        })

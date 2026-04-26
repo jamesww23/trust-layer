@@ -179,6 +179,73 @@ class TestTrustClient(unittest.TestCase):
             self.assertEqual(leaderboard[2].agent_id, "a")  # 0.5
 
 
+class TestPortabilityMethods(unittest.TestCase):
+    """Test the cross-instance export_blob / import_blob methods."""
+
+    def setUp(self):
+        self.client = TrustClient("https://test.example.com")
+
+    @patch("urllib.request.urlopen")
+    def test_export_blob_returns_payload(self, mock_urlopen):
+        """export_blob hits /api/export and returns the parsed JSON."""
+        mock_response = MagicMock()
+        mock_response.read.return_value = (
+            b'{"format_version":"1.0","agent":{"agent_id":"alice"},'
+            b'"task_history":[],"signature":"sha256:abc"}'
+        )
+        mock_response.__enter__.return_value = mock_response
+        mock_urlopen.return_value = mock_response
+
+        blob = self.client.export_blob("alice")
+
+        self.assertEqual(blob["format_version"], "1.0")
+        self.assertEqual(blob["agent"]["agent_id"], "alice")
+        self.assertTrue(blob["signature"].startswith("sha256:"))
+
+        # Verify the URL the SDK actually requested
+        called_request = mock_urlopen.call_args[0][0]
+        self.assertIn("/api/export?agent_id=alice", called_request.full_url)
+        self.assertEqual(called_request.get_method(), "GET")
+
+    @patch("urllib.request.urlopen")
+    def test_import_blob_posts_payload(self, mock_urlopen):
+        """import_blob POSTs to /api/import with blob + flags."""
+        mock_response = MagicMock()
+        mock_response.read.return_value = b'{"status":"imported","agent_id":"alice"}'
+        mock_response.__enter__.return_value = mock_response
+        mock_urlopen.return_value = mock_response
+
+        blob = {"format_version": "1.0", "agent": {"agent_id": "alice"}}
+        result = self.client.import_blob(blob, overwrite=True, apply_decay=False)
+
+        self.assertEqual(result["status"], "imported")
+
+        # Verify the POST body contains our blob and flags
+        called_request = mock_urlopen.call_args[0][0]
+        self.assertIn("/api/import", called_request.full_url)
+        self.assertEqual(called_request.get_method(), "POST")
+        import json as _json
+        body = _json.loads(called_request.data.decode())
+        self.assertEqual(body["blob"], blob)
+        self.assertTrue(body["overwrite"])
+        self.assertFalse(body["apply_decay"])
+
+    @patch("urllib.request.urlopen")
+    def test_import_blob_defaults(self, mock_urlopen):
+        """Default flags: overwrite=False, apply_decay=True."""
+        mock_response = MagicMock()
+        mock_response.read.return_value = b'{"status":"imported"}'
+        mock_response.__enter__.return_value = mock_response
+        mock_urlopen.return_value = mock_response
+
+        self.client.import_blob({"any": "blob"})
+
+        import json as _json
+        body = _json.loads(mock_urlopen.call_args[0][0].data.decode())
+        self.assertFalse(body["overwrite"])
+        self.assertTrue(body["apply_decay"])
+
+
 class TestModels(unittest.TestCase):
     """Test cases for data models."""
 
